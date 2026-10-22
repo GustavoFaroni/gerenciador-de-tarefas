@@ -1,7 +1,8 @@
 "use client";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-import { LayoutDashboard, Target, Flag, Plus, StickyNote, LogOut } from "lucide-react";
+import { LayoutDashboard, Target, Flag, Plus, LogOut } from "lucide-react";
+import { Logo } from "./Logo";
 import { signOut, useSession } from "next-auth/react";
 import clsx from "clsx";
 import { useTaskModal } from "./TaskModal";
@@ -30,9 +31,7 @@ export function Sidebar() {
       {/* desktop */}
       <aside className="sticky top-0 hidden h-screen w-64 shrink-0 flex-col border-r border-white/5 bg-ink-900/40 p-5 backdrop-blur-xl md:flex">
         <div className="mb-8 flex items-center gap-2">
-          <div className="grid h-9 w-9 place-items-center rounded-xl bg-gradient-to-br from-violet-500 to-fuchsia-500 shadow-lg shadow-violet-500/30">
-            <StickyNote size={18} className="text-white" />
-          </div>
+          <Logo size={36} className="shrink-0 drop-shadow-[0_6px_14px_rgba(139,92,246,0.35)]" />
           <div>
             <p className="text-sm font-semibold text-white">Gerenciador</p>
             <p className="text-xs text-slate-400">de Tarefas</p>
