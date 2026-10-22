@@ -41,6 +41,23 @@ body {
   }
 }
 
+/* caixas de seleção legíveis no tema escuro (no Windows a lista abre com fundo branco) */
+select {
+  color-scheme: dark;
+  background-color: #181c38 !important;
+  color: #e2e8f0;
+}
+select option,
+select optgroup {
+  background-color: #181c38;
+  color: #e2e8f0;
+}
+select option:checked,
+select option:hover {
+  background-color: #6d28d9;
+  color: #ffffff;
+}
+
 /* data inputs no tema escuro */
 input[type="date"]::-webkit-calendar-picker-indicator {
   filter: invert(0.8);
