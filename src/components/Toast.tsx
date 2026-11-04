@@ -20,12 +20,13 @@ export function ToastProvider({ children }: { children: ReactNode }) {
   return (
     <Ctx.Provider value={push}>
       {children}
-      <div className="pointer-events-none fixed bottom-20 right-4 z-[100] flex flex-col gap-2 md:bottom-6">
+      <div role="status" aria-live="polite" aria-atomic="false" className="pointer-events-none fixed bottom-20 right-4 z-[100] flex flex-col gap-2 md:bottom-6">
         {toasts.map((t) => {
           const Icon = t.kind === "success" ? CheckCircle2 : t.kind === "error" ? AlertTriangle : Info;
           return (
             <div
               key={t.id}
+              role={t.kind === "error" ? "alert" : undefined}
               className={clsx(
                 "pointer-events-auto flex animate-pop items-center gap-2 rounded-xl border px-4 py-3 text-sm shadow-lift backdrop-blur",
                 t.kind === "success" && "border-emerald-400/30 bg-emerald-500/15 text-emerald-100",
@@ -33,7 +34,7 @@ export function ToastProvider({ children }: { children: ReactNode }) {
                 t.kind === "info" && "border-white/10 bg-white/10 text-slate-100"
               )}
             >
-              <Icon size={16} />
+              <Icon size={16} aria-hidden="true" />
               {t.message}
             </div>
           );

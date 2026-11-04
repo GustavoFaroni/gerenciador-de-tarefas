@@ -1,6 +1,8 @@
 "use client";
 import { createContext, useCallback, useContext, useEffect, useMemo, useState, type ReactNode } from "react";
-import { api } from "@/lib/client";
+import { api, type TaskUpdate } from "@/lib/client";
+import { isRecurring, scoreFor } from "@/lib/points";
+import { todayISO } from "@/lib/dates";
 import type { Goal, Task } from "@/types";
 import { useToast } from "./Toast";
 
@@ -11,7 +13,9 @@ type Store = {
   error: string | null;
   reload: () => Promise<void>;
   createTask: (data: Partial<Task>) => Promise<Task | null>;
-  updateTask: (id: string, data: Partial<Task>) => Promise<boolean>;
+  updateTask: (id: string, data: TaskUpdate) => Promise<boolean>;
+  /** Conclui/reabre a tarefa num dia (recorrentes: a ocorrência daquele dia). */
+  setDone: (task: Task, done: boolean, date?: string) => Promise<boolean>;
   deleteTask: (id: string) => Promise<void>;
   setDaily: (id: string, date: string | null) => Promise<boolean>;
   createGoal: (data: Partial<Goal>) => Promise<Goal | null>;
@@ -78,11 +82,11 @@ export function StoreProvider({ children }: { children: ReactNode }) {
 
   /** Atualização otimista: aplica na tela e desfaz se a API falhar. */
   const updateTask = useCallback(
-    async (id: string, data: Partial<Task>) => {
+    async (id: string, data: TaskUpdate) => {
       let snapshot: Task[] = [];
       setTasks((prev) => {
         snapshot = prev;
-        return prev.map((t) => (t._id === id ? { ...t, ...data } : t));
+        return prev.map((t) => (t._id === id ? optimistic(t, data) : t));
       });
       try {
         const saved = await api.tasks.update(id, data);
@@ -95,6 +99,18 @@ export function StoreProvider({ children }: { children: ReactNode }) {
       }
     },
     [toast]
+  );
+
+  const setDone = useCallback(
+    async (task: Task, done: boolean, date?: string) => {
+      const res = await updateTask(task._id, { status: done ? "concluida" : "pendente", date: date ?? todayISO() });
+      if (res && done) {
+        const { points, doubled } = scoreFor(task, new Date().getHours());
+        toast(doubled ? `+${points} pts (dobro da manhã!)` : `+${points} pts`, "success");
+      }
+      return res;
+    },
+    [updateTask, toast]
   );
 
   const deleteTask = useCallback(
@@ -187,6 +203,7 @@ export function StoreProvider({ children }: { children: ReactNode }) {
         reload,
         createTask,
         updateTask,
+        setDone,
         deleteTask,
         setDaily,
         createGoal,
@@ -198,4 +215,26 @@ export function StoreProvider({ children }: { children: ReactNode }) {
       {children}
     </Ctx.Provider>
   );
+}
+
+/** Aplica a mudança na tela antes da resposta da API (inclusive conclusões de recorrentes). */
+function optimistic(t: Task, data: TaskUpdate): Task {
+  const { date, ...rest } = data;
+  if (rest.status && isRecurring({ recurrence: rest.recurrence ?? t.recurrence })) {
+    const day = date ?? todayISO();
+    const { points, doubled } = scoreFor({ ...t, ...rest }, new Date().getHours());
+    const others = (t.completions || []).filter((c) => c.date !== day);
+    const { status, ...without } = rest;
+    return {
+      ...t,
+      ...without,
+      completions: status === "concluida" ? [...others, { date: day, at: new Date().toISOString(), points, doubled }] : others,
+    };
+  }
+  if (rest.status === "concluida" && t.status !== "concluida") {
+    const { points, doubled } = scoreFor({ ...t, ...rest }, new Date().getHours());
+    return { ...t, ...rest, completedAt: new Date().toISOString(), pointsEarned: points, doubled };
+  }
+  if (rest.status === "pendente") return { ...t, ...rest, completedAt: null, pointsEarned: null, doubled: false };
+  return { ...t, ...rest };
 }

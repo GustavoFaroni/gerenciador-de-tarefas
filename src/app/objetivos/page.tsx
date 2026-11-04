@@ -1,4 +1,5 @@
 "use client";
+import { isDoneOn } from "@/lib/points";
 import { useEffect, useState } from "react";
 import { Flag, Plus, Trash2, Check, Calendar, Pencil } from "lucide-react";
 import clsx from "clsx";
@@ -11,7 +12,7 @@ import { PRIORITY_LABEL, type Priority } from "@/types";
 const COLORS = ["#8b5cf6", "#ec4899", "#0ea5e9", "#10b981", "#f59e0b", "#ef4444"];
 
 export default function ObjetivosPage() {
-  const { goals, tasks, createGoal, deleteGoal, createTask, updateTask } = useStore();
+  const { goals, tasks, createGoal, deleteGoal, createTask, setDone } = useStore();
   const { open } = useTaskModal();
   const [selected, setSelected] = useState<string | null>(null);
   const [title, setTitle] = useState("");
@@ -85,7 +86,7 @@ export default function ObjetivosPage() {
           </form>
 
           <ul className="space-y-3">
-            {goals.length === 0 && <li className="text-sm text-slate-500">Nenhum objetivo ainda.</li>}
+            {goals.length === 0 && <li className="text-sm text-slate-400">Nenhum objetivo ainda.</li>}
             {goals.map((g) => {
               const pct = g.totalTasks ? Math.round(((g.doneTasks ?? 0) / g.totalTasks) * 100) : 0;
               return (
@@ -102,7 +103,7 @@ export default function ObjetivosPage() {
                     <div className="mt-3 h-1.5 overflow-hidden rounded-full bg-white/10">
                       <div className="h-full rounded-full transition-all" style={{ width: `${pct}%`, background: g.color }} />
                     </div>
-                    <p className="mt-2 text-xs text-slate-500">
+                    <p className="mt-2 text-xs text-slate-400">
                       {g.doneTasks}/{g.totalTasks} tarefas{g.deadline ? ` · até ${formatBR(g.deadline)}` : ""}
                     </p>
                   </button>
@@ -114,7 +115,7 @@ export default function ObjetivosPage() {
 
         <section className="glass min-h-[400px] p-6">
           {!goal ? (
-            <div className="grid h-full place-items-center text-center text-slate-500">
+            <div className="grid h-full place-items-center text-center text-slate-400">
               <div>
                 <Flag size={32} className="mx-auto mb-2" />
                 Crie um objetivo e adicione tarefas relacionadas a ele.
@@ -159,25 +160,25 @@ export default function ObjetivosPage() {
               </form>
 
               <ul className="space-y-2">
-                {goalTasks.length === 0 && <li className="py-8 text-center text-sm text-slate-500">Nenhuma tarefa neste objetivo.</li>}
+                {goalTasks.length === 0 && <li className="py-8 text-center text-sm text-slate-400">Nenhuma tarefa neste objetivo.</li>}
                 {goalTasks.map((t) => {
-                  const done = t.status === "concluida";
+                  const done = isDoneOn(t);
                   const late = !done && !!t.dueDate && t.dueDate < today;
                   return (
                     <li key={t._id} className="group flex items-center gap-3 rounded-xl border border-white/5 bg-white/[0.03] px-4 py-3">
                       <button
-                        onClick={() => updateTask(t._id, { status: done ? "pendente" : "concluida" })}
+                        onClick={() => setDone(t, !done)}
                         className={clsx("grid h-5 w-5 shrink-0 place-items-center rounded-md border transition", done ? "border-emerald-400 bg-emerald-400 text-ink-950" : "border-slate-500 hover:border-violet-400")}
                         aria-label={done ? "Reabrir" : "Concluir"}
                       >
                         {done && <Check size={12} strokeWidth={3} />}
                       </button>
-                      <span className={clsx("flex-1 text-sm", done && "text-slate-500 line-through")}>{t.title}</span>
+                      <span className={clsx("flex-1 text-sm", done && "text-slate-400 line-through")}>{t.title}</span>
                       <span className={clsx("rounded-full px-2 py-0.5 text-[11px]", t.priority === "alta" ? "bg-rose-500/15 text-rose-300" : t.priority === "media" ? "bg-amber-500/15 text-amber-300" : "bg-emerald-500/15 text-emerald-300")}>
                         {PRIORITY_LABEL[t.priority]}
                       </span>
-                      {t.dueDate && <span className={clsx("text-xs", late ? "text-rose-300" : "text-slate-500")}>{formatBR(t.dueDate)}</span>}
-                      <button onClick={() => open(t)} className="rounded-lg p-1 text-slate-500 opacity-0 hover:bg-white/10 hover:text-white group-hover:opacity-100" aria-label="Editar">
+                      {t.dueDate && <span className={clsx("text-xs", late ? "text-rose-300" : "text-slate-400")}>{formatBR(t.dueDate)}</span>}
+                      <button onClick={() => open(t)} className="rounded-lg p-1 text-slate-400 opacity-0 hover:bg-white/10 hover:text-white group-hover:opacity-100" aria-label="Editar">
                         <Pencil size={14} />
                       </button>
                     </li>

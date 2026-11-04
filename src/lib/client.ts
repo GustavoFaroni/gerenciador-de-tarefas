@@ -1,5 +1,7 @@
 import type { Goal, Task } from "@/types";
 
+export type TaskUpdate = Partial<Task> & { date?: string };
+
 async function req<T>(url: string, init?: RequestInit): Promise<T> {
   const res = await fetch(url, {
     ...init,
@@ -19,8 +21,11 @@ export const api = {
   tasks: {
     list: () => req<Task[]>("/api/tasks"),
     create: (data: Partial<Task>) => req<Task>("/api/tasks", { method: "POST", body: JSON.stringify(data) }),
-    update: (id: string, data: Partial<Task>) =>
-      req<Task>(`/api/tasks/${id}`, { method: "PATCH", body: JSON.stringify(data) }),
+    update: (id: string, data: TaskUpdate) =>
+      req<Task>(`/api/tasks/${id}`, {
+        method: "PATCH",
+        body: JSON.stringify({ ...data, tz: Intl.DateTimeFormat().resolvedOptions().timeZone }),
+      }),
     remove: (id: string) => req<{ deleted: boolean }>(`/api/tasks/${id}`, { method: "DELETE" }),
   },
   goals: {

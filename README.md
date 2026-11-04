@@ -11,6 +11,13 @@ Gerenciador de tarefas com quadro estilo **post-it** (arrastar e soltar), **3 me
 | **Quadro** (`/`) | Post-its em 3 colunas: **Pendentes**, **Em atraso** e **Concluídas**. Arraste para concluir ou reabrir. Filtros por prioridade, objetivo e busca. |
 | **Metas do dia** (`/metas-diarias`) | Escolha até **3 tarefas por dia**, acompanhe o progresso, navegue entre dias e veja o histórico dos últimos 7 dias (com sequência 🔥). |
 | **Objetivos** (`/objetivos`) | Cadastre objetivos (com prazo e cor) e as tarefas relacionadas; barra de progresso automática. |
+| **Calendário** (`/calendario`) | Semana inteira em blocos de 30 min (no celular, um dia por vez). Arraste os post-its sem horário para a grade, mova blocos entre horários, clique num espaço vazio para criar tarefa ali e marque a conclusão direto no bloco. |
+
+### Regras de pontuação (`src/lib/points.ts`)
+- Cada tarefa vale os **pontos definidos nela**. Sem valor: **Alta 20 · Média 10 · Baixa 5**.
+- Concluída entre **06:00 e 11:59** → vale o **dobro** (calculado no servidor, no fuso do navegador).
+- Tarefas **recorrentes** (todo dia, dias úteis ou dias da semana escolhidos) pontuam uma vez por ocorrência; concluir num dia não afeta os outros.
+- O saldo total e o de hoje aparecem na barra lateral e no calendário.
 
 ### Regras do quadro
 - **Em atraso** é automático: tarefa pendente com prazo vencido.

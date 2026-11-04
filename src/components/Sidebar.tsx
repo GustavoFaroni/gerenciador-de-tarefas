@@ -1,7 +1,8 @@
 "use client";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-import { LayoutDashboard, Target, Flag, Plus, LogOut } from "lucide-react";
+import { LayoutDashboard, Target, Flag, Plus, LogOut, CalendarDays, Coins, Sun } from "lucide-react";
+import { earnedOn, earnedTotal, isDoneOn } from "@/lib/points";
 import { Logo } from "./Logo";
 import { signOut, useSession } from "next-auth/react";
 import clsx from "clsx";
@@ -12,6 +13,7 @@ import { DAILY_LIMIT } from "@/types";
 
 const NAV = [
   { href: "/", label: "Quadro", icon: LayoutDashboard },
+  { href: "/calendario", label: "Calendário", icon: CalendarDays },
   { href: "/metas-diarias", label: "Metas do dia", icon: Target },
   { href: "/objetivos", label: "Objetivos", icon: Flag },
 ];
@@ -24,7 +26,9 @@ export function Sidebar() {
   const user = session?.user;
   const today = todayISO();
   const daily = tasks.filter((t) => t.dailyDate === today);
-  const dailyDone = daily.filter((t) => t.status === "concluida").length;
+  const dailyDone = daily.filter((t) => isDoneOn(t, today)).length;
+  const ptsToday = earnedOn(tasks, today);
+  const ptsTotal = earnedTotal(tasks);
 
   return (
     <>
@@ -42,11 +46,12 @@ export function Sidebar() {
           <Plus size={16} /> Nova tarefa
         </button>
 
-        <nav className="flex flex-col gap-1">
+        <nav aria-label="Principal" className="flex flex-col gap-1">
           {NAV.map(({ href, label, icon: Icon }) => (
             <Link
               key={href}
               href={href}
+              aria-current={path === href ? "page" : undefined}
               className={clsx(
                 "flex items-center gap-3 rounded-xl px-3 py-2.5 text-sm transition",
                 path === href ? "bg-white/10 text-white" : "text-slate-400 hover:bg-white/5 hover:text-slate-200"
@@ -58,11 +63,24 @@ export function Sidebar() {
           ))}
         </nav>
 
-        <div className="glass mt-auto p-4">
+        <div className="glass mt-auto mb-3 p-4">
+          <p className="flex items-center gap-1.5 text-xs uppercase tracking-wide text-slate-400">
+            <Coins size={13} className="text-amber-300" /> Pontos
+          </p>
+          <p className="mt-1 text-2xl font-semibold text-white tabular-nums">
+            {ptsTotal}
+            <span className="ml-2 text-sm font-medium text-amber-200">+{ptsToday} hoje</span>
+          </p>
+          <p className="mt-2 flex items-center gap-1 text-[11px] text-slate-400">
+            <Sun size={11} className="text-amber-300" /> 6h às 12h: pontos em dobro
+          </p>
+        </div>
+
+        <div className="glass p-4">
           <p className="text-xs uppercase tracking-wide text-slate-400">Metas de hoje</p>
           <p className="mt-1 text-2xl font-semibold text-white">
             {dailyDone}
-            <span className="text-base text-slate-500">/{DAILY_LIMIT}</span>
+            <span className="text-base text-slate-400">/{DAILY_LIMIT}</span>
           </p>
           <div className="mt-3 flex gap-1.5">
             {Array.from({ length: DAILY_LIMIT }).map((_, i) => (
@@ -84,11 +102,11 @@ export function Sidebar() {
             </div>
             <div className="min-w-0 flex-1">
               <p className="truncate text-sm text-white">{user.name}</p>
-              <p className="truncate text-xs text-slate-500">{user.email}</p>
+              <p className="truncate text-xs text-slate-400">{user.email}</p>
             </div>
             <button
               onClick={() => signOut({ callbackUrl: "/login" })}
-              className="rounded-lg p-2 text-slate-400 hover:bg-white/10 hover:text-white"
+              className="rounded-lg p-2.5 text-slate-400 hover:bg-white/10 hover:text-white"
               aria-label="Sair"
               title="Sair"
             >
@@ -99,23 +117,28 @@ export function Sidebar() {
       </aside>
 
       {/* mobile */}
-      <nav className="fixed inset-x-0 bottom-0 z-40 flex items-center justify-around border-t border-white/10 bg-ink-900/90 py-2 backdrop-blur-xl md:hidden">
+      <nav aria-label="Principal" className="fixed inset-x-0 bottom-0 z-40 flex items-center justify-around border-t border-white/10 bg-ink-900/90 py-2 backdrop-blur-xl md:hidden">
         {NAV.map(({ href, label, icon: Icon }) => (
           <Link
             key={href}
             href={href}
-            className={clsx("flex flex-col items-center gap-0.5 px-3 text-[11px]", path === href ? "text-violet-300" : "text-slate-400")}
+            aria-current={path === href ? "page" : undefined}
+            className={clsx("flex min-h-[44px] flex-col justify-center items-center gap-0.5 px-3 text-[11px]", path === href ? "text-violet-300" : "text-slate-400")}
           >
             <Icon size={20} />
             {label}
           </Link>
         ))}
-        <button onClick={() => signOut({ callbackUrl: "/login" })} className="flex flex-col items-center gap-0.5 px-3 text-[11px] text-slate-400">
+        <button onClick={() => signOut({ callbackUrl: "/login" })} className="flex min-h-[44px] flex-col justify-center items-center gap-0.5 px-3 text-[11px] text-slate-400">
           <LogOut size={20} />
           Sair
         </button>
-        <button onClick={() => open()} className="grid h-11 w-11 place-items-center rounded-full bg-gradient-to-br from-violet-500 to-fuchsia-500 text-white shadow-lg">
-          <Plus size={20} />
+        <button
+          onClick={() => open()}
+          aria-label="Nova tarefa"
+          className="grid h-11 w-11 place-items-center rounded-full bg-gradient-to-br from-violet-600 to-fuchsia-600 text-white shadow-lg"
+        >
+          <Plus size={20} aria-hidden="true" />
         </button>
       </nav>
     </>

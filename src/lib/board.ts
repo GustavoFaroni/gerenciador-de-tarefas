@@ -1,7 +1,9 @@
 import { PRIORITY_WEIGHT, type BoardColumn, type Task } from "@/types";
 import { todayISO } from "./dates";
+import { isDoneOn, isRecurring } from "./points";
 
 export function columnOf(task: Task, today = todayISO()): BoardColumn {
+  if (isRecurring(task)) return isDoneOn(task, today) ? "concluida" : "pendente";
   if (task.status === "concluida") return "concluida";
   if (task.dueDate && task.dueDate < today) return "atrasada";
   return "pendente";

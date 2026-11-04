@@ -11,6 +11,28 @@ const TaskSchema = new Schema(
     dailyDate: { type: String, default: null, index: true }, // dia em que é uma das 3 metas
     completedAt: { type: Date, default: null },
     userId: { type: String, default: null, index: true }, // preparado para login futuro
+    // calendário e pontuação
+    points: { type: Number, default: null, min: 0, max: 1000 },
+    scheduledDate: { type: String, default: null, index: true }, // "YYYY-MM-DD"
+    startTime: { type: String, default: null }, // "HH:MM"
+    duration: { type: Number, default: 1, min: 1, max: 48 }, // blocos de 30 min
+    recurrence: {
+      freq: { type: String, enum: ["none", "daily", "weekly"], default: "none" },
+      days: { type: [Number], default: [] },
+      start: { type: String, default: null },
+      until: { type: String, default: null },
+    },
+    completions: {
+      type: [
+        new Schema(
+          { date: String, at: Date, points: Number, doubled: Boolean },
+          { _id: false }
+        ),
+      ],
+      default: [],
+    },
+    pointsEarned: { type: Number, default: null },
+    doubled: { type: Boolean, default: false },
   },
   { timestamps: true }
 );

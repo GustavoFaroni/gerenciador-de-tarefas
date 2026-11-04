@@ -1,4 +1,5 @@
 "use client";
+import { isDoneOn } from "@/lib/points";
 import Link from "next/link";
 import { Target, Check, ArrowRight } from "lucide-react";
 import clsx from "clsx";
@@ -8,7 +9,7 @@ import { DAILY_LIMIT } from "@/types";
 
 /** Faixa compacta com as 3 metas de hoje, exibida no topo do quadro. */
 export function DailyStrip() {
-  const { tasks, updateTask } = useStore();
+  const { tasks, setDone } = useStore();
   const today = todayISO();
   const daily = tasks.filter((t) => t.dailyDate === today);
   const slots = Array.from({ length: DAILY_LIMIT }, (_, i) => daily[i] ?? null);
@@ -24,10 +25,10 @@ export function DailyStrip() {
           t ? (
             <button
               key={t._id}
-              onClick={() => updateTask(t._id, { status: t.status === "concluida" ? "pendente" : "concluida" })}
+              onClick={() => setDone(t, !isDoneOn(t, today), today)}
               className={clsx(
                 "flex items-center gap-2 rounded-xl border px-3 py-2 text-left text-sm transition",
-                t.status === "concluida"
+                isDoneOn(t, today)
                   ? "border-emerald-400/30 bg-emerald-500/10 text-emerald-200"
                   : "border-white/10 bg-white/5 text-slate-200 hover:bg-white/10"
               )}
@@ -35,18 +36,18 @@ export function DailyStrip() {
               <span
                 className={clsx(
                   "grid h-5 w-5 shrink-0 place-items-center rounded-full border",
-                  t.status === "concluida" ? "border-emerald-400 bg-emerald-400 text-ink-950" : "border-slate-500"
+                  isDoneOn(t, today) ? "border-emerald-400 bg-emerald-400 text-ink-950" : "border-slate-500"
                 )}
               >
-                {t.status === "concluida" && <Check size={12} strokeWidth={3} />}
+                {isDoneOn(t, today) && <Check size={12} strokeWidth={3} />}
               </span>
-              <span className={clsx("truncate", t.status === "concluida" && "line-through opacity-70")}>{t.title}</span>
+              <span className={clsx("truncate", isDoneOn(t, today) && "line-through opacity-70")}>{t.title}</span>
             </button>
           ) : (
             <Link
               key={`empty-${i}`}
               href="/metas-diarias"
-              className="flex items-center justify-center rounded-xl border border-dashed border-white/15 px-3 py-2 text-sm text-slate-500 hover:border-violet-400/50 hover:text-violet-300"
+              className="flex items-center justify-center rounded-xl border border-dashed border-white/15 px-3 py-2 text-sm text-slate-400 hover:border-violet-400/50 hover:text-violet-300"
             >
               + definir meta {i + 1}
             </Link>
