@@ -55,3 +55,13 @@ export interface Goal {
 export const PRIORITY_LABEL: Record<Priority, string> = { alta: "Alta", media: "Média", baixa: "Baixa" };
 export const PRIORITY_WEIGHT: Record<Priority, number> = { alta: 0, media: 1, baixa: 2 };
 export const DAILY_LIMIT = 3;
+
+export interface Redemption {
+  _id: string;
+  minutes: number; // tempo livre resgatado
+  points: number; // pontos gastos
+  blocks: number; // nº de blocos de 30 min
+  startAt?: string | null; // quando o tempo livre começou (se "começar agora")
+  note?: string;
+  createdAt: string;
+}

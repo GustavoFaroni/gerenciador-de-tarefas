@@ -126,3 +126,17 @@ export function durationLabel(slots: number) {
   if (min < 60) return `${min} min`;
   return min % 60 ? `${Math.floor(min / 60)}h${min % 60}` : `${min / 60}h`;
 }
+
+/* ------------------------- resgate de tempo livre ------------------------- */
+// Cada REDEEM_POINTS pontos viram REDEEM_MINUTES minutos de tempo livre.
+export const REDEEM_POINTS = 60;
+export const REDEEM_MINUTES = 30;
+/** Quantos blocos de 30 min dá para resgatar com esse saldo */
+export const affordableBlocks = (balance: number) => Math.max(0, Math.floor(balance / REDEEM_POINTS));
+export function spentTotal(redemptions: { points: number }[]) {
+  return redemptions.reduce((s, r) => s + (r.points || 0), 0);
+}
+export function minutesLabel(min: number) {
+  if (min < 60) return `${min} min`;
+  return min % 60 ? `${Math.floor(min / 60)}h${min % 60}` : `${min / 60}h`;
+}

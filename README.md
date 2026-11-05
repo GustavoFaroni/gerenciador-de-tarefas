@@ -19,6 +19,11 @@ Gerenciador de tarefas com quadro estilo **post-it** (arrastar e soltar), **3 me
 - Tarefas **recorrentes** (todo dia, dias úteis ou dias da semana escolhidos) pontuam uma vez por ocorrência; concluir num dia não afeta os outros.
 - O saldo total e o de hoje aparecem na barra lateral e no calendário.
 
+### Tempo livre (`/tempo-livre`)
+- **60 pontos = 30 minutos de tempo livre.** Resgate em blocos de 30 min (até 8h por vez).
+- O saldo é **pontos ganhos − pontos resgatados**, conferido no servidor antes de aceitar o resgate.
+- "Começar agora" liga um cronômetro com o tempo restante. Um resgate pode ser desfeito nos primeiros 10 minutos.
+
 ### Regras do quadro
 - **Em atraso** é automático: tarefa pendente com prazo vencido.
 - Arrastar para **Concluídas** → marca como concluída.

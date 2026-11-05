@@ -29,7 +29,6 @@ import {
   WEEKDAYS_LONG,
   basePoints,
   earnedOn,
-  earnedTotal,
   endTime,
   isDoneOn,
   isRecurring,
@@ -117,7 +116,7 @@ export function Calendar() {
 }
 
 function CalendarView() {
-  const { tasks, loading, updateTask, setDone } = useStore();
+  const { tasks, loading, updateTask, setDone, balance } = useStore();
   const toast = useToast();
   const { open } = useTaskModal();
   const isMobile = useIsMobile();
@@ -241,7 +240,6 @@ function CalendarView() {
 
   const nowIdx = now.getHours() * 2 + now.getMinutes() / 30;
   const todayPts = earnedOn(tasks, today);
-  const total = earnedTotal(tasks);
 
   return (
     <div>
@@ -262,7 +260,7 @@ function CalendarView() {
             </span>
             <span className="text-amber-200/50">·</span>
             <span>
-              Total <b>{total}</b> pts
+              Saldo <b>{balance}</b> pts
             </span>
           </div>
           <div className="flex items-center rounded-xl border border-white/10 bg-white/5 p-1">

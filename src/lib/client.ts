@@ -1,4 +1,4 @@
-import type { Goal, Task } from "@/types";
+import type { Goal, Redemption, Task } from "@/types";
 
 export type TaskUpdate = Partial<Task> & { date?: string };
 
@@ -35,6 +35,12 @@ export const api = {
       req<Goal>(`/api/goals/${id}`, { method: "PATCH", body: JSON.stringify(data) }),
     remove: (id: string, withTasks = false) =>
       req<{ deleted: boolean }>(`/api/goals/${id}?withTasks=${withTasks}`, { method: "DELETE" }),
+  },
+  redemptions: {
+    list: () => req<Redemption[]>("/api/redemptions"),
+    create: (blocks: number, startNow: boolean, note?: string) =>
+      req<Redemption>("/api/redemptions", { method: "POST", body: JSON.stringify({ blocks, startNow, note }) }),
+    remove: (id: string) => req<{ deleted: boolean }>(`/api/redemptions/${id}`, { method: "DELETE" }),
   },
   daily: {
     set: (taskId: string, date: string, action: "add" | "remove") =>

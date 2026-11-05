@@ -1,14 +1,19 @@
 "use client";
 import { createContext, useCallback, useContext, useEffect, useMemo, useState, type ReactNode } from "react";
 import { api, type TaskUpdate } from "@/lib/client";
-import { isRecurring, scoreFor } from "@/lib/points";
+import { earnedTotal, isRecurring, minutesLabel, scoreFor, spentTotal } from "@/lib/points";
 import { todayISO } from "@/lib/dates";
-import type { Goal, Task } from "@/types";
+import type { Goal, Redemption, Task } from "@/types";
 import { useToast } from "./Toast";
 
 type Store = {
   tasks: Task[];
   goals: Goal[];
+  redemptions: Redemption[];
+  /** pontos ganhos − pontos resgatados */
+  balance: number;
+  redeem: (blocks: number, startNow: boolean, note?: string) => Promise<boolean>;
+  undoRedemption: (id: string) => Promise<void>;
   loading: boolean;
   error: string | null;
   reload: () => Promise<void>;
@@ -35,14 +40,16 @@ export function StoreProvider({ children }: { children: ReactNode }) {
   const toast = useToast();
   const [tasks, setTasks] = useState<Task[]>([]);
   const [goals, setGoals] = useState<Goal[]>([]);
+  const [redemptions, setRedemptions] = useState<Redemption[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
   const reload = useCallback(async () => {
     try {
-      const [t, g] = await Promise.all([api.tasks.list(), api.goals.list()]);
+      const [t, g, r] = await Promise.all([api.tasks.list(), api.goals.list(), api.redemptions.list()]);
       setTasks(t);
       setGoals(g);
+      setRedemptions(r);
       setError(null);
     } catch (e) {
       setError((e as Error).message);
@@ -111,6 +118,36 @@ export function StoreProvider({ children }: { children: ReactNode }) {
       return res;
     },
     [updateTask, toast]
+  );
+
+  const balance = useMemo(() => earnedTotal(tasks) - spentTotal(redemptions), [tasks, redemptions]);
+
+  const redeem = useCallback(
+    async (blocks: number, startNow: boolean, note?: string) => {
+      try {
+        const r = await api.redemptions.create(blocks, startNow, note);
+        setRedemptions((prev) => [r, ...prev]);
+        toast(`Resgatado: ${minutesLabel(r.minutes)} de tempo livre (−${r.points} pts)`, "success");
+        return true;
+      } catch (e) {
+        toast((e as Error).message, "error");
+        return false;
+      }
+    },
+    [toast]
+  );
+
+  const undoRedemption = useCallback(
+    async (id: string) => {
+      try {
+        await api.redemptions.remove(id);
+        setRedemptions((prev) => prev.filter((r) => r._id !== id));
+        toast("Resgate desfeito, pontos devolvidos", "info");
+      } catch (e) {
+        toast((e as Error).message, "error");
+      }
+    },
+    [toast]
   );
 
   const deleteTask = useCallback(
@@ -198,6 +235,10 @@ export function StoreProvider({ children }: { children: ReactNode }) {
       value={{
         tasks,
         goals: goalsWithStats,
+        redemptions,
+        balance,
+        redeem,
+        undoRedemption,
         loading,
         error,
         reload,

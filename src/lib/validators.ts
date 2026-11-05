@@ -54,3 +54,9 @@ export const registerSchema = z.object({
   email: z.string().trim().toLowerCase().email("E-mail inválido"),
   password: z.string().min(8, "A senha precisa ter pelo menos 8 caracteres").max(100),
 });
+
+export const redemptionCreateSchema = z.object({
+  blocks: z.number().int().min(1, "Resgate pelo menos 30 min").max(16, "Máximo de 8h por resgate"),
+  startNow: z.boolean().optional(),
+  note: z.string().trim().max(80).optional(),
+});

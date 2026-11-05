@@ -1,8 +1,8 @@
 "use client";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-import { LayoutDashboard, Target, Flag, Plus, LogOut, CalendarDays, Coins, Sun } from "lucide-react";
-import { earnedOn, earnedTotal, isDoneOn } from "@/lib/points";
+import { LayoutDashboard, Target, Flag, Plus, LogOut, CalendarDays, Coins, Sun, Hourglass } from "lucide-react";
+import { REDEEM_MINUTES, affordableBlocks, earnedOn, isDoneOn, minutesLabel } from "@/lib/points";
 import { Logo } from "./Logo";
 import { signOut, useSession } from "next-auth/react";
 import clsx from "clsx";
@@ -16,19 +16,20 @@ const NAV = [
   { href: "/calendario", label: "Calendário", icon: CalendarDays },
   { href: "/metas-diarias", label: "Metas do dia", icon: Target },
   { href: "/objetivos", label: "Objetivos", icon: Flag },
+  { href: "/tempo-livre", label: "Tempo livre", icon: Hourglass },
 ];
 
 export function Sidebar() {
   const path = usePathname();
   const { open } = useTaskModal();
-  const { tasks } = useStore();
+  const { tasks, balance } = useStore();
   const { data: session } = useSession();
   const user = session?.user;
   const today = todayISO();
   const daily = tasks.filter((t) => t.dailyDate === today);
   const dailyDone = daily.filter((t) => isDoneOn(t, today)).length;
   const ptsToday = earnedOn(tasks, today);
-  const ptsTotal = earnedTotal(tasks);
+  const freeMin = affordableBlocks(balance) * REDEEM_MINUTES;
 
   return (
     <>
@@ -63,18 +64,21 @@ export function Sidebar() {
           ))}
         </nav>
 
-        <div className="glass mt-auto mb-3 p-4">
+        <Link href="/tempo-livre" className="glass mt-auto mb-3 block p-4 transition hover:border-amber-300/30">
           <p className="flex items-center gap-1.5 text-xs uppercase tracking-wide text-slate-400">
-            <Coins size={13} className="text-amber-300" /> Pontos
+            <Coins size={13} className="text-amber-300" aria-hidden="true" /> Saldo de pontos
           </p>
           <p className="mt-1 text-2xl font-semibold text-white tabular-nums">
-            {ptsTotal}
+            {balance}
             <span className="ml-2 text-sm font-medium text-amber-200">+{ptsToday} hoje</span>
           </p>
-          <p className="mt-2 flex items-center gap-1 text-[11px] text-slate-400">
-            <Sun size={11} className="text-amber-300" /> 6h às 12h: pontos em dobro
+          <p className="mt-1 text-xs text-slate-300">
+            = <b className="text-white">{minutesLabel(freeMin)}</b> de tempo livre
           </p>
-        </div>
+          <p className="mt-2 flex items-center gap-1 text-[11px] text-slate-400">
+            <Sun size={11} className="text-amber-300" aria-hidden="true" /> 6h às 12h: pontos em dobro
+          </p>
+        </Link>
 
         <div className="glass p-4">
           <p className="text-xs uppercase tracking-wide text-slate-400">Metas de hoje</p>
