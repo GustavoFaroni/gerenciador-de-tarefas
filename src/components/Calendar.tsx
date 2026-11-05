@@ -103,7 +103,20 @@ function layoutDay(items: { task: Task; start: number; end: number }[]) {
   return out;
 }
 
+/**
+ * A página é pré-gerada no build: tudo que depende da hora atual (linha do "agora",
+ * horários passados, foco inicial) só pode ser calculado no navegador.
+ */
 export function Calendar() {
+  const [mounted, setMounted] = useState(false);
+  useEffect(() => setMounted(true), []);
+  if (!mounted) {
+    return <div className="glass h-[60vh] animate-pulse" aria-busy="true" aria-label="Carregando calendário" />;
+  }
+  return <CalendarView />;
+}
+
+function CalendarView() {
   const { tasks, loading, updateTask, setDone } = useStore();
   const toast = useToast();
   const { open } = useTaskModal();
@@ -189,7 +202,11 @@ export function Calendar() {
     e.preventDefault();
     const [nd, ni] = next;
     setFocusKey(`${nd}|${SLOTS[ni]}`);
-    requestAnimationFrame(() => document.getElementById(slotId(nd, SLOTS[ni]))?.focus());
+    const el = document.getElementById(slotId(nd, SLOTS[ni]));
+    // foco imediato quando o quadrado já está na tela (teclas rápidas não se perdem);
+    // se mudou de semana/dia, espera o novo dia renderizar
+    if (el) el.focus();
+    else requestAnimationFrame(() => document.getElementById(slotId(nd, SLOTS[ni]))?.focus());
   }
 
   function onDragStart(e: DragStartEvent) {
@@ -387,6 +404,7 @@ export function Calendar() {
                         left={(b.lane / b.lanes) * 100}
                         width={100 / b.lanes}
                         compact={days.length > 1 && b.lanes > 1}
+                        narrow={days.length > 1}
                         onToggle={() => setDone(b.task, !isDoneOn(b.task, d), d)}
                         onOpen={() => open(b.task)}
                       />
@@ -480,6 +498,7 @@ function Block({
   left,
   width,
   compact,
+  narrow,
   onToggle,
   onOpen,
 }: {
@@ -490,6 +509,7 @@ function Block({
   left: number;
   width: number;
   compact: boolean;
+  narrow: boolean;
   onToggle: () => void;
   onOpen: () => void;
 }) {
@@ -509,7 +529,7 @@ function Block({
       {...pointerListeners}
       style={{ top: top + 1, height: height - 2, left: `calc(${left}% + 2px)`, width: `calc(${width}% - 4px)` }}
       className={clsx(
-        "absolute z-10 flex cursor-grab touch-none select-none gap-1 overflow-hidden rounded-md border-l-4 py-0.5 pl-1 pr-0.5 shadow-postit active:cursor-grabbing",
+        "group absolute z-10 flex cursor-grab touch-none select-none gap-1 overflow-hidden rounded-md border-l-4 py-0.5 pl-1 pr-1 shadow-postit active:cursor-grabbing",
         POSTIT_COLORS[task.priority],
         PRIORITY_STRIPE[task.priority],
         short ? "items-center" : "items-start",
@@ -526,7 +546,7 @@ function Block({
         }}
         aria-pressed={done}
         aria-label={`${done ? "Reabrir" : "Concluir"} ${task.title}`}
-        className="-m-0.5 grid h-6 w-6 shrink-0 place-items-center rounded"
+        className={clsx("grid shrink-0 place-items-center rounded", narrow ? "h-5 w-4" : "-m-0.5 h-6 w-6")}
       >
         <span
           className={clsx(
@@ -572,7 +592,7 @@ function Block({
         {...attributes}
         onKeyDown={onKeyDown as React.KeyboardEventHandler<HTMLButtonElement> | undefined}
         aria-label={`Mover: ${spoken}`}
-        className="grid w-5 shrink-0 cursor-grab place-items-center self-stretch rounded opacity-60 hover:opacity-100 focus-visible:opacity-100"
+        className="absolute inset-y-0 right-0 grid w-5 cursor-grab place-items-center rounded-r bg-inherit opacity-0 transition group-hover:opacity-80 focus-visible:opacity-100"
       >
         <GripVertical size={13} aria-hidden="true" />
       </button>

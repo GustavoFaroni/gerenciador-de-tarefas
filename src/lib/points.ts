@@ -55,6 +55,7 @@ export function clockIn(tz: string, d = new Date()) {
 /* ----------------------------- recorrência ----------------------------- */
 export const WEEKDAYS_SHORT = ["D", "S", "T", "Q", "Q", "S", "S"];
 export const WEEKDAYS_LONG = ["dom", "seg", "ter", "qua", "qui", "sex", "sáb"];
+export const WEEKDAYS_FULL = ["domingo", "segunda", "terça", "quarta", "quinta", "sexta", "sábado"];
 
 export function isRecurring(t: Pick<Task, "recurrence">) {
   return !!t.recurrence && t.recurrence.freq !== "none";
@@ -85,7 +86,7 @@ export function recurrenceLabel(r?: Recurrence | null) {
   const days = [...(r.days || [])].sort();
   if (days.join() === "1,2,3,4,5") return "Dias úteis";
   if (days.length === 7) return "Todo dia";
-  if (days.length === 1) return `Toda ${WEEKDAYS_LONG[days[0]]}`;
+  if (days.length === 1) return `${days[0] === 0 || days[0] === 6 ? "Todo" : "Toda"} ${WEEKDAYS_FULL[days[0]]}`;
   return days.map((d) => WEEKDAYS_LONG[d]).join(", ");
 }
 
