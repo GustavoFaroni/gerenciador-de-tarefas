@@ -1,4 +1,6 @@
-import type { Goal, Task } from "@/types";
+import type { Goal, Redemption, Task } from "@/types";
+
+export type TaskUpdate = Partial<Task> & { date?: string };
 
 async function req<T>(url: string, init?: RequestInit): Promise<T> {
   const res = await fetch(url, {
@@ -19,8 +21,11 @@ export const api = {
   tasks: {
     list: () => req<Task[]>("/api/tasks"),
     create: (data: Partial<Task>) => req<Task>("/api/tasks", { method: "POST", body: JSON.stringify(data) }),
-    update: (id: string, data: Partial<Task>) =>
-      req<Task>(`/api/tasks/${id}`, { method: "PATCH", body: JSON.stringify(data) }),
+    update: (id: string, data: TaskUpdate) =>
+      req<Task>(`/api/tasks/${id}`, {
+        method: "PATCH",
+        body: JSON.stringify({ ...data, tz: Intl.DateTimeFormat().resolvedOptions().timeZone }),
+      }),
     remove: (id: string) => req<{ deleted: boolean }>(`/api/tasks/${id}`, { method: "DELETE" }),
   },
   goals: {
@@ -30,6 +35,12 @@ export const api = {
       req<Goal>(`/api/goals/${id}`, { method: "PATCH", body: JSON.stringify(data) }),
     remove: (id: string, withTasks = false) =>
       req<{ deleted: boolean }>(`/api/goals/${id}?withTasks=${withTasks}`, { method: "DELETE" }),
+  },
+  redemptions: {
+    list: () => req<Redemption[]>("/api/redemptions"),
+    create: (blocks: number, startAt: string | null, note?: string) =>
+      req<Redemption>("/api/redemptions", { method: "POST", body: JSON.stringify({ blocks, startAt, note }) }),
+    remove: (id: string) => req<{ deleted: boolean }>(`/api/redemptions/${id}`, { method: "DELETE" }),
   },
   daily: {
     set: (taskId: string, date: string, action: "add" | "remove") =>

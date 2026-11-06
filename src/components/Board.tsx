@@ -21,6 +21,7 @@ import { DraggablePostIt, PostItCard } from "./PostIt";
 import { DailyStrip } from "./DailyStrip";
 import { columnOf, sortTasks } from "@/lib/board";
 import { todayISO } from "@/lib/dates";
+import { dndAnnouncements, dndInstructions } from "@/lib/a11y";
 import { PRIORITY_LABEL, type BoardColumn, type Priority, type Task } from "@/types";
 
 const COLUMNS: { id: BoardColumn; title: string; icon: typeof Clock; accent: string; empty: string }[] = [
@@ -30,7 +31,7 @@ const COLUMNS: { id: BoardColumn; title: string; icon: typeof Clock; accent: str
 ];
 
 export function Board() {
-  const { tasks, goals, loading, error, updateTask } = useStore();
+  const { tasks, goals, loading, error, updateTask, setDone } = useStore();
   const toast = useToast();
   const { open } = useTaskModal();
   const [active, setActive] = useState<Task | null>(null);
@@ -76,9 +77,13 @@ export function Board() {
     if (from === target) return;
 
     if (target === "concluida") {
-      updateTask(task._id, { status: "concluida" });
-      toast("Tarefa concluída!", "success");
+      setDone(task, true);
     } else if (target === "pendente") {
+      if (from === "concluida") {
+        setDone(task, false);
+        toast("Tarefa reaberta", "info");
+        return;
+      }
       // vinda do atraso: reagenda para hoje
       const data: Partial<Task> = { status: "pendente" };
       if (task.dueDate && task.dueDate < today) data.dueDate = today;
@@ -102,7 +107,7 @@ export function Board() {
         </div>
         <div className="flex flex-wrap items-center gap-2">
           <div className="relative">
-            <Search size={15} className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-500" />
+            <Search size={15} className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" />
             <input className="input w-48 pl-9" placeholder="Buscar..." value={q} onChange={(e) => setQ(e.target.value)} />
           </div>
           <select className="input w-auto" value={goal} onChange={(e) => setGoal(e.target.value)}>
@@ -138,7 +143,13 @@ export function Board() {
         </div>
       )}
 
-      <DndContext sensors={sensors} onDragStart={onDragStart} onDragEnd={onDragEnd} onDragCancel={() => setActive(null)}>
+      <DndContext
+        sensors={sensors}
+        accessibility={{ announcements: dndAnnouncements, screenReaderInstructions: dndInstructions }}
+        onDragStart={onDragStart}
+        onDragEnd={onDragEnd}
+        onDragCancel={() => setActive(null)}
+      >
         <div className="grid grid-cols-1 gap-5 lg:grid-cols-3">
           {COLUMNS.map((c) => (
             <Column
@@ -186,7 +197,7 @@ function Column({
         <span className="rounded-full bg-white/10 px-2 py-0.5 text-xs text-slate-300">{tasks.length}</span>
         <div className="flex-1" />
         {onAdd && (
-          <button onClick={onAdd} className="rounded-lg p-1.5 text-slate-400 hover:bg-white/10 hover:text-white" aria-label="Adicionar">
+          <button onClick={onAdd} className="rounded-lg p-2 text-slate-400 hover:bg-white/10 hover:text-white" aria-label="Nova tarefa pendente">
             <Plus size={16} />
           </button>
         )}
@@ -197,7 +208,7 @@ function Column({
           Array.from({ length: 3 }).map((_, i) => <div key={i} className="h-28 animate-pulse rounded-sm bg-white/5" />)}
         {!loading && tasks.map((t) => <DraggablePostIt key={t._id} task={t} />)}
         {!loading && tasks.length === 0 && (
-          <p className="col-span-full mt-10 text-center text-sm text-slate-500">{empty}</p>
+          <p className="col-span-full mt-10 text-center text-sm text-slate-400">{empty}</p>
         )}
       </div>
     </section>

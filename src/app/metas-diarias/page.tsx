@@ -1,4 +1,5 @@
 "use client";
+import { isDoneOn } from "@/lib/points";
 import { useMemo, useState } from "react";
 import { ChevronLeft, ChevronRight, Plus, X, Check, Target, Flame } from "lucide-react";
 import clsx from "clsx";
@@ -9,14 +10,14 @@ import { sortTasks } from "@/lib/board";
 import { DAILY_LIMIT, PRIORITY_LABEL, type Priority } from "@/types";
 
 export default function MetasDiariasPage() {
-  const { tasks, setDaily, updateTask, createTask } = useStore();
+  const { tasks, setDaily, setDone, createTask } = useStore();
   const today = todayISO();
   const [date, setDate] = useState(today);
   const [newTitle, setNewTitle] = useState("");
   const [newPriority, setNewPriority] = useState<Priority>("alta");
 
   const daily = tasks.filter((t) => t.dailyDate === date);
-  const done = daily.filter((t) => t.status === "concluida").length;
+  const done = daily.filter((t) => isDoneOn(t, date)).length;
   const full = daily.length >= DAILY_LIMIT;
 
   const candidates = useMemo(
@@ -35,7 +36,7 @@ export default function MetasDiariasPage() {
   const history = Array.from({ length: 7 }, (_, i) => {
     const d = addDays(today, -6 + i);
     const ts = tasks.filter((t) => t.dailyDate === d);
-    return { d, total: ts.length, done: ts.filter((t) => t.status === "concluida").length };
+    return { d, total: ts.length, done: ts.filter((t) => isDoneOn(t, d)).length };
   });
   let streak = 0;
   for (let i = history.length - 1; i >= 0; i--) {
@@ -99,13 +100,13 @@ export default function MetasDiariasPage() {
               const t = daily[i];
               if (!t)
                 return (
-                  <div key={i} className="grid min-h-[150px] place-items-center rounded-xl border-2 border-dashed border-white/10 text-sm text-slate-500">
+                  <div key={i} className="grid min-h-[150px] place-items-center rounded-xl border-2 border-dashed border-white/10 text-sm text-slate-400">
                     <span className="flex flex-col items-center gap-1">
                       <Target size={20} /> Meta {i + 1}
                     </span>
                   </div>
                 );
-              const isDone = t.status === "concluida";
+              const isDone = isDoneOn(t, date);
               return (
                 <div key={t._id} className={clsx("relative flex min-h-[150px] flex-col rounded-sm p-4 shadow-postit", POSTIT_COLORS[t.priority], isDone && "opacity-70")}>
                   <button onClick={() => setDaily(t._id, null)} className="absolute right-2 top-2 rounded p-1 opacity-50 hover:bg-black/10 hover:opacity-100" aria-label="Remover das metas">
@@ -114,7 +115,7 @@ export default function MetasDiariasPage() {
                   <span className="text-[11px] font-semibold uppercase opacity-60">Meta {i + 1}</span>
                   <p className={clsx("mt-1 flex-1 font-hand text-2xl font-bold leading-6", isDone && "line-through")}>{t.title}</p>
                   <button
-                    onClick={() => updateTask(t._id, { status: isDone ? "pendente" : "concluida" })}
+                    onClick={() => setDone(t, !isDone, date)}
                     className="mt-3 flex items-center justify-center gap-1.5 rounded-lg bg-black/10 py-1.5 text-sm font-medium hover:bg-black/20"
                   >
                     <Check size={14} /> {isDone ? "Feito" : "Concluir"}
@@ -156,7 +157,7 @@ export default function MetasDiariasPage() {
                       <span key={i} className={clsx("flex-1 rounded-sm", i < h.done ? "bg-emerald-400" : i < h.total ? "bg-violet-400/40" : "bg-white/5")} />
                     ))}
                   </div>
-                  <span className={clsx("text-[10px]", h.d === date ? "text-white" : "text-slate-500")}>{h.d.slice(8)}</span>
+                  <span className={clsx("text-[10px]", h.d === date ? "text-white" : "text-slate-400")}>{h.d.slice(8)}</span>
                 </button>
               ))}
             </div>
@@ -165,7 +166,7 @@ export default function MetasDiariasPage() {
           <div className="glass p-5">
             <h2 className="mb-3 font-medium text-white">Tarefas pendentes</h2>
             <ul className="max-h-[360px] space-y-2 overflow-y-auto pr-1">
-              {candidates.length === 0 && <li className="text-sm text-slate-500">Nenhuma tarefa pendente.</li>}
+              {candidates.length === 0 && <li className="text-sm text-slate-400">Nenhuma tarefa pendente.</li>}
               {candidates.map((t) => {
                 const late = !!t.dueDate && t.dueDate < today;
                 return (

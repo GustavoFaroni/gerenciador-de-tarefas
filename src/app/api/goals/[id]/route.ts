@@ -23,7 +23,8 @@ export async function PATCH(req: NextRequest, { params }: Ctx) {
   }
 }
 
-// DELETE /api/goals/:id?withTasks=true  -> apaga também as tarefas; senão apenas desvincula
+// DELETE /api/goals/:id?withTasks=true -> apaga também as tarefas que ainda não deram pontos
+// (pendentes e sem conclusões). As que já pontuaram ficam, desvinculadas, para o saldo não mudar.
 export async function DELETE(req: NextRequest, { params }: Ctx) {
   try {
     if (!isValidId(params.id)) return fail("ID inválido", 400);
@@ -33,10 +34,9 @@ export async function DELETE(req: NextRequest, { params }: Ctx) {
     const res = await GoalModel.deleteOne({ _id: params.id, userId });
     if (!res.deletedCount) return fail("Objetivo não encontrado", 404);
     if (req.nextUrl.searchParams.get("withTasks") === "true") {
-      await TaskModel.deleteMany({ goalId: params.id, userId });
-    } else {
-      await TaskModel.updateMany({ goalId: params.id, userId }, { goalId: null });
+      await TaskModel.deleteMany({ goalId: params.id, userId, status: "pendente", "completions.0": { $exists: false } });
     }
+    await TaskModel.updateMany({ goalId: params.id, userId }, { goalId: null });
     return ok({ deleted: true });
   } catch (e) {
     return handleError(e);

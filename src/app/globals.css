@@ -14,6 +14,21 @@ body {
   background-attachment: fixed;
 }
 
+/* foco do teclado sempre visível (WCAG 2.4.7) */
+:focus-visible {
+  outline: 2px solid #c4b5fd;
+  outline-offset: 2px;
+  /* anel escuro + claro: visível tanto no fundo escuro quanto em cima dos post-its */
+  box-shadow: 0 0 0 2px #0b0d17;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  *, *::before, *::after {
+    animation-duration: 0.01ms !important;
+    transition-duration: 0.01ms !important;
+  }
+}
+
 @layer components {
   .glass {
     @apply rounded-2xl border border-white/10 bg-white/[0.04] backdrop-blur-xl;
@@ -23,14 +38,14 @@ body {
       focus:outline-none focus-visible:ring-2 focus-visible:ring-violet-400 disabled:opacity-50;
   }
   .btn-primary {
-    @apply btn bg-gradient-to-r from-violet-500 to-fuchsia-500 text-white shadow-lg shadow-violet-500/25 hover:brightness-110;
+    @apply btn bg-gradient-to-r from-violet-600 to-fuchsia-600 text-white shadow-lg shadow-violet-500/25 hover:brightness-110;
   }
   .btn-ghost {
     @apply btn border border-white/10 bg-white/5 text-slate-200 hover:bg-white/10;
   }
   .input {
-    @apply w-full rounded-xl border border-white/10 bg-white/5 px-3 py-2 text-sm text-slate-100 placeholder:text-slate-500
-      focus:border-violet-400/60 focus:outline-none focus:ring-2 focus:ring-violet-500/20;
+    @apply w-full rounded-xl border border-white/35 bg-white/5 px-3 py-2 text-sm text-slate-100 placeholder:text-slate-500
+      focus:border-violet-300 focus:outline-none focus:ring-2 focus:ring-violet-400/60;
   }
   .label {
     @apply mb-1 block text-xs font-medium uppercase tracking-wide text-slate-400;
