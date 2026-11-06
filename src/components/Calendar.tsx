@@ -445,10 +445,10 @@ function CalendarView() {
                     {leisure[d]?.map((l) => (
                       <div
                         key={l.id}
-                        className="pointer-events-none absolute inset-x-0 z-[5] overflow-hidden border-l-4 border-emerald-400 bg-emerald-500/15 px-1.5 py-0.5"
+                        className="pointer-events-none absolute inset-x-0 z-[5] overflow-hidden rounded-md border border-dashed border-sky-400/40 bg-sky-500/10 px-2 py-0.5"
                         style={{ top: l.top, height: l.height }}
                       >
-                        <span className="block truncate text-[11px] font-semibold text-emerald-200">{l.label}</span>
+                        <span className="block truncate text-[11px] font-semibold text-sky-200">{l.label}</span>
                       </div>
                     ))}
                     {byDay[d]?.map((b) => (
@@ -462,6 +462,7 @@ function CalendarView() {
                         width={100 / b.lanes}
                         compact={days.length > 1 && b.lanes > 1}
                         narrow={days.length > 1}
+                        live={d === today && b.start <= nowIdx && nowIdx < b.end}
                         onToggle={() => setDone(b.task, !isDoneOn(b.task, d), d)}
                         onOpen={() => open(b.task)}
                       />
@@ -475,8 +476,16 @@ function CalendarView() {
 
         <DragOverlay dropAnimation={{ duration: 160, easing: "cubic-bezier(.2,.8,.2,1)" }}>
           {active ? (
-            <div className={clsx("w-48 rotate-2 rounded-md p-2 text-sm font-semibold shadow-lift", POSTIT_COLORS[active.priority])}>
-              <span className="font-hand text-lg leading-5">{active.title}</span>
+            <div
+              className={clsx(
+                "relative w-48 rotate-1 overflow-hidden rounded-lg border bg-ink-900/90 py-2 pl-3 pr-2 text-[13px] font-semibold text-slate-50 shadow-lift",
+                "before:absolute before:inset-y-0 before:left-0 before:w-[3px]",
+                EVT[active.priority].card,
+                EVT[active.priority].bar
+              )}
+            >
+              {active.title}
+              <span className="block text-[11px] font-normal text-slate-300">Solte num horário</span>
             </div>
           ) : null}
         </DragOverlay>
@@ -541,11 +550,33 @@ const PRIORITY_STRIPE: Record<Task["priority"], string> = {
   media: "border-l-amber-700",
   baixa: "border-l-emerald-700",
 };
-const PRIORITY_LETTER: Record<Task["priority"], string> = { alta: "A", media: "M", baixa: "B" };
+
+/** Estilo dos eventos na grade escura: fundo tingido + barra lateral na cor da prioridade */
+const EVT: Record<Task["priority"], { card: string; bar: string; dot: string }> = {
+  alta: { card: "bg-rose-500/[0.16] hover:bg-rose-500/[0.24] border-rose-400/25", bar: "before:bg-rose-400", dot: "bg-rose-400" },
+  media: { card: "bg-amber-400/[0.14] hover:bg-amber-400/[0.22] border-amber-300/25", bar: "before:bg-amber-300", dot: "bg-amber-300" },
+  baixa: { card: "bg-emerald-500/[0.14] hover:bg-emerald-500/[0.22] border-emerald-400/25", bar: "before:bg-emerald-400", dot: "bg-emerald-400" },
+};
+const DONE_CARD = "bg-white/[0.04] hover:bg-white/[0.07] border-white/10";
+
 const stop = {
   onPointerDown: (e: React.SyntheticEvent) => e.stopPropagation(),
   onTouchStart: (e: React.SyntheticEvent) => e.stopPropagation(),
 };
+
+function CheckCircle({ done, size = 18 }: { done: boolean; size?: number }) {
+  return (
+    <span
+      style={{ width: size, height: size }}
+      className={clsx(
+        "grid place-items-center rounded-full border-[1.5px] transition",
+        done ? "border-emerald-400 bg-emerald-500 text-white" : "border-white/45 bg-black/20 group-hover/check:border-white/80"
+      )}
+    >
+      {done && <Check size={size - 6} strokeWidth={3.5} aria-hidden="true" />}
+    </span>
+  );
+}
 
 function Block({
   task,
@@ -556,6 +587,7 @@ function Block({
   width,
   compact,
   narrow,
+  live,
   onToggle,
   onOpen,
 }: {
@@ -567,6 +599,8 @@ function Block({
   width: number;
   compact: boolean;
   narrow: boolean;
+  /** está acontecendo agora */
+  live: boolean;
   onToggle: () => void;
   onOpen: () => void;
 }) {
@@ -577,13 +611,18 @@ function Block({
   // mouse/toque arrastam pelo bloco todo; teclado arrasta pela alça (sem botões aninhados)
   const { onKeyDown, ...pointerListeners } = listeners ?? {};
   const done = isDoneOn(task, day);
-  const earned = isRecurring(task) ? task.completions?.find((c) => c.date === day)?.points : task.pointsEarned;
-  const short = height <= ROW_H;
-  const spoken = spokenTask(task);
   const comp = isRecurring(task) ? task.completions?.find((c) => c.date === day) : null;
+  const earned = isRecurring(task) ? comp?.points : task.pointsEarned;
   const doneTime = comp?.time ?? (isRecurring(task) ? null : task.doneTime);
   const doneNote = comp?.note || (isRecurring(task) ? "" : task.reviewNote);
-  const tip = [task.title, done && doneTime ? `feito às ${doneTime}` : "", doneNote ? `obs.: ${doneNote}` : ""].filter(Boolean).join(" · ");
+  const slots = Math.round(height / ROW_H);
+  const short = slots <= 1;
+  const tall = slots >= 3 && !compact;
+  const range = `${task.startTime}–${endTime(task.startTime as string, task.duration)}`;
+  const spoken = spokenTask(task);
+  const tip = [task.title, range, done && doneTime ? `feito às ${doneTime}` : "", doneNote ? `obs.: ${doneNote}` : ""].filter(Boolean).join(" · ");
+  const e = EVT[task.priority];
+
   return (
     <div
       ref={setNodeRef}
@@ -591,72 +630,91 @@ function Block({
       title={tip}
       style={{ top: top + 1, height: height - 2, left: `calc(${left}% + 2px)`, width: `calc(${width}% - 4px)` }}
       className={clsx(
-        "group absolute z-10 flex cursor-grab touch-none select-none gap-1 overflow-hidden rounded-md border-l-4 py-0.5 pl-1 pr-1 shadow-postit active:cursor-grabbing",
-        POSTIT_COLORS[task.priority],
-        PRIORITY_STRIPE[task.priority],
-        short ? "items-center" : "items-start",
-        done && "opacity-60",
+        // barra lateral colorida (pseudo-elemento) + fundo tingido
+        "group absolute z-10 flex cursor-grab touch-none select-none overflow-hidden rounded-lg border pl-2.5 text-slate-50 shadow-[0_1px_2px_rgba(0,0,0,.35)] backdrop-blur-[2px] transition-colors active:cursor-grabbing",
+        "before:absolute before:inset-y-0 before:left-0 before:w-[3px]",
+        done ? clsx(DONE_CARD, "before:bg-emerald-400/70") : clsx(e.card, e.bar),
+        short ? "items-center py-0 pr-1" : "items-start py-1.5 pr-1.5",
+        live && !done && "ring-1 ring-white/60",
         isDragging && "opacity-30"
       )}
     >
       <button
         type="button"
         {...stop}
-        onClick={(e) => {
-          e.stopPropagation();
+        onClick={(ev) => {
+          ev.stopPropagation();
+          onOpen();
+        }}
+        aria-label={`Editar: ${spoken}${done ? `, concluída${doneTime ? ` às ${doneTime}` : ""}` : ""}${doneNote ? `, observação: ${doneNote}` : ""}`}
+        className={clsx("flex min-w-0 flex-1 self-stretch rounded text-left", short ? "items-center gap-1.5" : "flex-col items-start justify-start gap-0.5")}
+      >
+        <span
+          className={clsx(
+            "min-w-0 max-w-full font-semibold leading-[1.15rem]",
+            narrow ? "text-[12px]" : "text-[13px]",
+            short || narrow ? "truncate" : slots >= 3 ? "line-clamp-3" : "line-clamp-2",
+            done && "text-slate-400 line-through decoration-slate-500"
+          )}
+        >
+          {task.title}
+        </span>
+        {short && !narrow && <span className="shrink-0 text-[11px] tabular-nums text-slate-300">{task.startTime}</span>}
+        {!short && (
+          <span className="flex items-center gap-1.5 text-[11px] tabular-nums text-slate-300">
+            {live && !done && (
+              <span className="flex items-center gap-1 font-semibold text-white">
+                <span className="h-1.5 w-1.5 animate-pulse rounded-full bg-rose-400" aria-hidden="true" />
+                agora ·
+              </span>
+            )}
+            {done && doneTime && doneTime !== task.startTime ? `feito às ${doneTime}` : range}
+          </span>
+        )}
+        {tall && (
+          <span className="mt-auto flex flex-wrap items-center gap-1 pt-1 text-[11px]">
+            <span className="flex items-center gap-1 rounded-md bg-black/25 px-1.5 py-0.5 font-medium text-amber-200">
+              <Coins size={11} aria-hidden="true" />
+              {done && earned != null ? `+${earned}` : basePoints(task)}
+            </span>
+            <span className="flex items-center gap-1 rounded-md bg-black/25 px-1.5 py-0.5 text-slate-200">
+              <span className={clsx("h-1.5 w-1.5 rounded-full", e.dot)} aria-hidden="true" />
+              {PRIORITY_LABEL[task.priority]}
+            </span>
+            {isRecurring(task) && (
+              <span className="flex items-center gap-1 rounded-md bg-black/25 px-1.5 py-0.5 text-slate-200">
+                <Repeat size={10} aria-hidden="true" />
+                {recurrenceLabel(task.recurrence)}
+              </span>
+            )}
+            {doneNote && <span className="max-w-full truncate rounded-md bg-black/25 px-1.5 py-0.5 italic text-slate-300">“{doneNote}”</span>}
+          </span>
+        )}
+      </button>
+
+      <button
+        type="button"
+        {...stop}
+        onClick={(ev) => {
+          ev.stopPropagation();
           onToggle();
         }}
         aria-pressed={done}
         aria-label={`${done ? "Reabrir" : "Concluir"} ${task.title}`}
-        className={clsx("grid shrink-0 place-items-center rounded", narrow ? "h-5 w-4" : "-m-0.5 h-6 w-6")}
+        className={clsx("group/check grid shrink-0 place-items-center rounded-full", narrow ? "h-6 w-5" : "h-7 w-7", short ? "" : "-mt-1")}
       >
-        <span
-          className={clsx(
-            "grid h-4 w-4 place-items-center rounded border-2",
-            done ? "border-emerald-800 bg-emerald-700 text-white" : "border-black/60 bg-white/50"
-          )}
-        >
-          {done && <Check size={11} strokeWidth={3} aria-hidden="true" />}
-        </span>
+        <CheckCircle done={done} size={narrow ? 15 : 18} />
       </button>
-      <button
-        type="button"
-        {...stop}
-        onClick={(e) => {
-          e.stopPropagation();
-          onOpen();
-        }}
-        aria-label={`Editar: ${spoken}${done ? `, concluída${doneTime ? ` às ${doneTime}` : ""}` : ""}${doneNote ? `, observação: ${doneNote}` : ""}`}
-        className="min-w-0 flex-1 self-stretch rounded text-left"
-      >
-        <p className={clsx("truncate text-[13px] font-semibold leading-4", done && "line-through")}>
-          <span className="mr-1 rounded bg-black/15 px-1 text-[10px] font-bold" aria-hidden="true">
-            {PRIORITY_LETTER[task.priority]}
-          </span>
-          {task.title}
-        </p>
-        {!short && !compact && (
-          <p className="mt-0.5 flex flex-wrap items-center gap-x-1.5 text-[11px] leading-4 opacity-80" aria-hidden="true">
-            <span className="tabular-nums">
-              {task.startTime}–{endTime(task.startTime as string, task.duration)}
-            </span>
-            <span className="flex items-center gap-0.5 font-semibold">
-              <Coins size={10} /> {done && earned != null ? `+${earned}` : basePoints(task)}
-            </span>
-            <span>{PRIORITY_LABEL[task.priority]}</span>
-            {isRecurring(task) && <Repeat size={10} />}
-          </p>
-        )}
-      </button>
+
       <button
         type="button"
         ref={setActivatorNodeRef}
         {...attributes}
         onKeyDown={onKeyDown as React.KeyboardEventHandler<HTMLButtonElement> | undefined}
         aria-label={`Mover: ${spoken}`}
-        className="absolute inset-y-0 right-0 grid w-5 cursor-grab place-items-center rounded-r bg-inherit opacity-0 transition group-hover:opacity-80 focus-visible:opacity-100"
+        className="absolute bottom-0.5 right-0.5 grid h-5 w-5 cursor-grab place-items-center rounded text-slate-300 opacity-0 transition group-hover:opacity-70 focus-visible:opacity-100"
       >
-        <GripVertical size={13} aria-hidden="true" />
+        <GripVertical size={12} aria-hidden="true" />
       </button>
     </div>
   );
@@ -667,44 +725,43 @@ function DayChip({ task, day, onToggle, onOpen }: { task: Task; day: string; onT
   const { attributes, listeners, setNodeRef, setActivatorNodeRef, isDragging } = useDraggable({ id: `day|${task._id}|${day}`, data: { task, day } });
   const { onKeyDown, ...pointerListeners } = listeners ?? {};
   const done = isDoneOn(task, day);
+  const e = EVT[task.priority];
   return (
     <div
       ref={setNodeRef}
       {...pointerListeners}
+      title={`${task.title} · sem horário · arraste para a grade`}
       className={clsx(
-        "group relative flex cursor-grab touch-none select-none items-center gap-1 rounded border-l-4 py-0.5 pl-1 pr-1 shadow-postit active:cursor-grabbing",
-        POSTIT_COLORS[task.priority],
-        PRIORITY_STRIPE[task.priority],
-        done && "opacity-60",
+        "group relative flex min-h-[26px] cursor-grab touch-none select-none items-center gap-1 overflow-hidden rounded-md border pl-2 pr-0.5 text-slate-50 transition-colors active:cursor-grabbing",
+        "before:absolute before:inset-y-0 before:left-0 before:w-[3px]",
+        done ? clsx(DONE_CARD, "before:bg-emerald-400/70") : clsx(e.card, e.bar),
         isDragging && "opacity-30"
       )}
     >
       <button
         type="button"
         {...stop}
-        onClick={(e) => {
-          e.stopPropagation();
-          onToggle();
+        onClick={(ev) => {
+          ev.stopPropagation();
+          onOpen();
         }}
-        aria-pressed={done}
-        aria-label={`${done ? "Reabrir" : "Concluir"} ${task.title}`}
-        className="grid h-5 w-4 shrink-0 place-items-center"
+        aria-label={`Editar: ${spokenTask(task)}, sem horário`}
+        className={clsx("min-w-0 flex-1 truncate text-left text-[11.5px] font-semibold leading-4", done && "text-slate-400 line-through")}
       >
-        <span className={clsx("grid h-3.5 w-3.5 place-items-center rounded border-2", done ? "border-emerald-800 bg-emerald-700 text-white" : "border-black/60 bg-white/50")}>
-          {done && <Check size={9} strokeWidth={3} aria-hidden="true" />}
-        </span>
+        {task.title}
       </button>
       <button
         type="button"
         {...stop}
-        onClick={(e) => {
-          e.stopPropagation();
-          onOpen();
+        onClick={(ev) => {
+          ev.stopPropagation();
+          onToggle();
         }}
-        aria-label={`Editar: ${spokenTask(task)}, sem horário`}
-        className={clsx("min-w-0 flex-1 truncate text-left text-[11px] font-semibold leading-4", done && "line-through")}
+        aria-pressed={done}
+        aria-label={`${done ? "Reabrir" : "Concluir"} ${task.title}`}
+        className="group/check grid h-6 w-5 shrink-0 place-items-center"
       >
-        {task.title}
+        <CheckCircle done={done} size={14} />
       </button>
       <button
         type="button"
@@ -712,7 +769,7 @@ function DayChip({ task, day, onToggle, onOpen }: { task: Task; day: string; onT
         {...attributes}
         onKeyDown={onKeyDown as React.KeyboardEventHandler<HTMLButtonElement> | undefined}
         aria-label={`Mover para um horário: ${spokenTask(task)}`}
-        className="absolute inset-y-0 right-0 grid w-4 place-items-center rounded-r bg-inherit opacity-0 transition group-hover:opacity-80 focus-visible:opacity-100"
+        className="sr-only focus:not-sr-only focus:absolute focus:inset-y-0 focus:right-6 focus:grid focus:w-4 focus:place-items-center"
       >
         <GripVertical size={11} aria-hidden="true" />
       </button>
