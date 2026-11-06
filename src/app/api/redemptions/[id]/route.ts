@@ -4,7 +4,7 @@ import { RedemptionModel } from "@/models/Redemption";
 import { ok, fail, handleError, isValidId } from "@/lib/api";
 import { getCurrentUserId } from "@/lib/auth";
 
-/** Desfazer um resgate: só nos primeiros 10 minutos (para corrigir um clique errado) */
+/** Desfazer um resgate: nos primeiros 10 minutos, ou a qualquer momento antes do horário agendado começar */
 const UNDO_WINDOW_MS = 10 * 60 * 1000;
 
 type Ctx = { params: { id: string } };
@@ -17,8 +17,10 @@ export async function DELETE(_req: NextRequest, { params }: Ctx) {
     await connectDB();
     const r = await RedemptionModel.findOne({ _id: params.id, userId });
     if (!r) return fail("Resgate não encontrado", 404);
-    if (Date.now() - new Date(r.get("createdAt")).getTime() > UNDO_WINDOW_MS) {
-      return fail("Só dá para desfazer um resgate nos primeiros 10 minutos.", 409);
+    const recent = Date.now() - new Date(r.get("createdAt")).getTime() <= UNDO_WINDOW_MS;
+    const notStarted = !!r.startAt && new Date(r.startAt).getTime() > Date.now();
+    if (!recent && !notStarted) {
+      return fail("Só dá para desfazer nos primeiros 10 minutos ou antes do horário agendado começar.", 409);
     }
     await r.deleteOne();
     return ok({ deleted: true });

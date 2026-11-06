@@ -1,7 +1,7 @@
 "use client";
 import { createContext, useCallback, useContext, useEffect, useMemo, useState, type ReactNode } from "react";
 import { api, type TaskUpdate } from "@/lib/client";
-import { earnedTotal, isRecurring, minutesLabel, scoreFor, spentTotal } from "@/lib/points";
+import { earnedTotal, hasPoints, isRecurring, minutesLabel, scoreFor, spentTotal } from "@/lib/points";
 import { todayISO } from "@/lib/dates";
 import type { Goal, Redemption, Task } from "@/types";
 import { useToast } from "./Toast";
@@ -12,7 +12,8 @@ type Store = {
   redemptions: Redemption[];
   /** pontos ganhos − pontos resgatados */
   balance: number;
-  redeem: (blocks: number, startNow: boolean, note?: string) => Promise<boolean>;
+  /** startAt: ISO do início (agora ou agendado); null = guardar para depois */
+  redeem: (blocks: number, startAt: string | null, note?: string) => Promise<boolean>;
   undoRedemption: (id: string) => Promise<void>;
   loading: boolean;
   error: string | null;
@@ -123,9 +124,9 @@ export function StoreProvider({ children }: { children: ReactNode }) {
   const balance = useMemo(() => earnedTotal(tasks) - spentTotal(redemptions), [tasks, redemptions]);
 
   const redeem = useCallback(
-    async (blocks: number, startNow: boolean, note?: string) => {
+    async (blocks: number, startAt: string | null, note?: string) => {
       try {
-        const r = await api.redemptions.create(blocks, startNow, note);
+        const r = await api.redemptions.create(blocks, startAt, note);
         setRedemptions((prev) => [r, ...prev]);
         toast(`Resgatado: ${minutesLabel(r.minutes)} de tempo livre (−${r.points} pts)`, "success");
         return true;
@@ -142,7 +143,7 @@ export function StoreProvider({ children }: { children: ReactNode }) {
       try {
         await api.redemptions.remove(id);
         setRedemptions((prev) => prev.filter((r) => r._id !== id));
-        toast("Resgate desfeito, pontos devolvidos", "info");
+        toast("Resgate cancelado, pontos devolvidos", "info");
       } catch (e) {
         toast((e as Error).message, "error");
       }
@@ -218,7 +219,9 @@ export function StoreProvider({ children }: { children: ReactNode }) {
         await api.goals.remove(id, withTasks);
         setGoals((prev) => prev.filter((g) => g._id !== id));
         setTasks((prev) =>
-          withTasks ? prev.filter((t) => t.goalId !== id) : prev.map((t) => (t.goalId === id ? { ...t, goalId: null } : t))
+          prev
+            .filter((t) => !(withTasks && t.goalId === id && !hasPoints(t)))
+            .map((t) => (t.goalId === id ? { ...t, goalId: null } : t))
         );
         toast("Objetivo excluído", "info");
       } catch (e) {

@@ -1,5 +1,5 @@
 "use client";
-import { isDoneOn } from "@/lib/points";
+import { hasPoints, isDoneOn } from "@/lib/points";
 import { useEffect, useState } from "react";
 import { Flag, Plus, Trash2, Check, Calendar, Pencil } from "lucide-react";
 import clsx from "clsx";
@@ -15,6 +15,7 @@ export default function ObjetivosPage() {
   const { goals, tasks, createGoal, deleteGoal, createTask, setDone } = useStore();
   const { open } = useTaskModal();
   const [selected, setSelected] = useState<string | null>(null);
+  const [confirmDel, setConfirmDel] = useState(false);
   const [title, setTitle] = useState("");
   const [description, setDescription] = useState("");
   const [deadline, setDeadline] = useState("");
@@ -22,6 +23,8 @@ export default function ObjetivosPage() {
   const [taskTitle, setTaskTitle] = useState("");
   const [taskPriority, setTaskPriority] = useState<Priority>("media");
   const today = todayISO();
+
+  useEffect(() => setConfirmDel(false), [selected]);
 
   useEffect(() => {
     if (!selected && goals.length) setSelected(goals[0]._id);
@@ -135,15 +138,28 @@ export default function ObjetivosPage() {
                   )}
                 </div>
                 <button
-                  onClick={() => {
-                    if (!confirm("Excluir objetivo? As tarefas serão mantidas, apenas desvinculadas.")) return;
-                    deleteGoal(goal._id);
-                  }}
+                  onClick={() => setConfirmDel(true)}
+                  aria-expanded={confirmDel}
+                  aria-controls="del-goal"
+                  aria-label={`Excluir objetivo ${goal.title}`}
                   className="btn-ghost text-rose-300 hover:bg-rose-500/10"
                 >
-                  <Trash2 size={15} />
+                  <Trash2 size={15} aria-hidden="true" />
                 </button>
               </div>
+
+              {confirmDel && (
+                <DeleteGoalPanel
+                  goalTitle={goal.title}
+                  pending={goalTasks.filter((t) => !hasPoints(t)).length}
+                  kept={goalTasks.filter(hasPoints).length}
+                  onCancel={() => setConfirmDel(false)}
+                  onConfirm={(withTasks) => {
+                    setConfirmDel(false);
+                    deleteGoal(goal._id, withTasks);
+                  }}
+                />
+              )}
 
               <form onSubmit={addTask} className="mb-5 flex flex-col gap-2 sm:flex-row">
                 <input className="input flex-1" placeholder="Adicionar tarefa a este objetivo..." value={taskTitle} onChange={(e) => setTaskTitle(e.target.value)} />
@@ -188,6 +204,48 @@ export default function ObjetivosPage() {
             </>
           )}
         </section>
+      </div>
+    </div>
+  );
+}
+
+function DeleteGoalPanel({
+  goalTitle,
+  pending,
+  kept,
+  onCancel,
+  onConfirm,
+}: {
+  goalTitle: string;
+  pending: number;
+  kept: number;
+  onCancel: () => void;
+  onConfirm: (withTasks: boolean) => void;
+}) {
+  return (
+    <div id="del-goal" role="alertdialog" aria-labelledby="del-goal-h" aria-describedby="del-goal-d" className="mb-6 rounded-2xl border border-rose-400/30 bg-rose-500/10 p-4">
+      <h3 id="del-goal-h" className="font-medium text-white">
+        Excluir “{goalTitle}”?
+      </h3>
+      <p id="del-goal-d" className="mt-1 text-sm text-slate-300">
+        {pending + kept === 0
+          ? "Este objetivo não tem tarefas."
+          : `Ele tem ${pending} tarefa${pending === 1 ? "" : "s"} pendente${pending === 1 ? "" : "s"}${
+              kept ? ` e ${kept} que já ${kept === 1 ? "deu" : "deram"} pontos (essas sempre ficam, para o seu saldo não mudar)` : ""
+            }.`}
+      </p>
+      <div className="mt-3 flex flex-wrap gap-2">
+        {pending > 0 && (
+          <button autoFocus type="button" onClick={() => onConfirm(true)} className="btn min-h-[40px] bg-rose-600 text-white hover:bg-rose-500">
+            Excluir objetivo e {pending} tarefa{pending === 1 ? "" : "s"} pendente{pending === 1 ? "" : "s"}
+          </button>
+        )}
+        <button autoFocus={pending === 0} type="button" onClick={() => onConfirm(false)} className="btn-ghost min-h-[40px] border border-white/15">
+          {pending + kept === 0 ? "Excluir objetivo" : "Excluir só o objetivo (manter tarefas)"}
+        </button>
+        <button type="button" onClick={onCancel} className="btn-ghost min-h-[40px]">
+          Cancelar
+        </button>
       </div>
     </div>
   );

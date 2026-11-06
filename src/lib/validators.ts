@@ -57,6 +57,7 @@ export const registerSchema = z.object({
 
 export const redemptionCreateSchema = z.object({
   blocks: z.number().int().min(1, "Resgate pelo menos 30 min").max(16, "Máximo de 8h por resgate"),
-  startNow: z.boolean().optional(),
+  /** início do tempo livre (ISO). Ausente/null = guardado para depois */
+  startAt: z.string().datetime({ offset: true }).nullable().optional(),
   note: z.string().trim().max(80).optional(),
 });

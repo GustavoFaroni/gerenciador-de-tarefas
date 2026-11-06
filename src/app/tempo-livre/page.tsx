@@ -1,9 +1,10 @@
 "use client";
 import { useEffect, useMemo, useState } from "react";
-import { Coins, Hourglass, Minus, Plus, Undo2, Play, Clock } from "lucide-react";
+import { Coins, Hourglass, Minus, Plus, Undo2, Play, Clock, CalendarClock } from "lucide-react";
 import clsx from "clsx";
 import { useStore } from "@/components/Store";
-import { REDEEM_MINUTES, REDEEM_POINTS, affordableBlocks, minutesLabel } from "@/lib/points";
+import { REDEEM_MINUTES, REDEEM_POINTS, SLOTS, affordableBlocks, minutesLabel } from "@/lib/points";
+import { todayISO } from "@/lib/dates";
 import type { Redemption } from "@/types";
 
 const UNDO_MS = 10 * 60 * 1000;
@@ -25,6 +26,16 @@ function countdown(msLeft: number) {
   const m = Math.floor((s % 3600) / 60);
   return h ? `${h}:${pad(m)}:${pad(s % 60)}` : `${pad(m)}:${pad(s % 60)}`;
 }
+const hhmm = (d: Date) => d.toLocaleTimeString("pt-BR", { hour: "2-digit", minute: "2-digit" });
+/** próximo início de bloco de 30 min a partir de agora */
+function nextSlot() {
+  const d = new Date();
+  d.setSeconds(0, 0);
+  d.setMinutes(d.getMinutes() < 30 ? 30 : 60);
+  return { date: todayISO(d), time: `${String(d.getHours()).padStart(2, "0")}:${String(d.getMinutes()).padStart(2, "0")}` };
+}
+type Mode = "now" | "later" | "bank";
+
 const when = (iso: string) =>
   new Date(iso).toLocaleString("pt-BR", { day: "2-digit", month: "2-digit", hour: "2-digit", minute: "2-digit" });
 
@@ -33,7 +44,14 @@ export default function TempoLivrePage() {
   const now = useClock();
   const max = affordableBlocks(balance);
   const [blocks, setBlocks] = useState(1);
-  const [startNow, setStartNow] = useState(true);
+  const [mode, setMode] = useState<Mode>("now");
+  const [day, setDay] = useState("");
+  const [time, setTime] = useState("");
+  useEffect(() => {
+    const n = nextSlot();
+    setDay(n.date);
+    setTime(n.time);
+  }, []);
   const [note, setNote] = useState("");
   const [busy, setBusy] = useState(false);
 
@@ -42,7 +60,9 @@ export default function TempoLivrePage() {
   }, [max, blocks]);
 
   const cost = blocks * REDEEM_POINTS;
-  const canRedeem = !busy && max >= 1 && blocks <= max;
+  const scheduled = mode === "later" && day && time ? new Date(`${day}T${time}:00`) : null;
+  const scheduleInPast = !!scheduled && now !== null && scheduled.getTime() < now - 5 * 60_000;
+  const canRedeem = !busy && max >= 1 && blocks <= max && (mode !== "later" || (!!scheduled && !scheduleInPast));
   const toNext = REDEEM_POINTS - (Math.max(0, balance) % REDEEM_POINTS);
 
   // tempo livre em andamento (resgates com "começar agora" que ainda não acabaram)
@@ -57,11 +77,19 @@ export default function TempoLivrePage() {
     );
   }, [redemptions, now]);
 
+  const upcoming = useMemo(() => {
+    if (!now) return [];
+    return redemptions
+      .filter((r) => r.startAt && new Date(r.startAt).getTime() > now)
+      .sort((a, b) => new Date(a.startAt as string).getTime() - new Date(b.startAt as string).getTime());
+  }, [redemptions, now]);
+
   async function submit(e: React.FormEvent) {
     e.preventDefault();
     if (!canRedeem) return;
     setBusy(true);
-    const ok = await redeem(blocks, startNow, note.trim() || undefined);
+    const startAt = mode === "now" ? new Date().toISOString() : mode === "later" && scheduled ? scheduled.toISOString() : null;
+    const ok = await redeem(blocks, startAt, note.trim() || undefined);
     setBusy(false);
     if (ok) {
       setNote("");
@@ -133,6 +161,35 @@ export default function TempoLivrePage() {
         </section>
       )}
 
+      {/* agendados */}
+      {upcoming.length > 0 && (
+        <section className="glass mb-5 p-5" aria-labelledby="prox-h">
+          <h2 id="prox-h" className="mb-2 flex items-center gap-2 font-medium text-white">
+            <CalendarClock size={17} className="text-emerald-300" aria-hidden="true" /> Agendados
+          </h2>
+          <ul className="divide-y divide-white/5">
+            {upcoming.map((r) => {
+              const st = new Date(r.startAt as string);
+              const en = new Date(st.getTime() + r.minutes * 60_000);
+              return (
+                <li key={r._id} className="flex items-center gap-3 py-2.5 text-sm">
+                  <div className="min-w-0 flex-1">
+                    <p className="text-slate-200">
+                      {st.toLocaleDateString("pt-BR", { weekday: "short", day: "2-digit", month: "2-digit" })}, {hhmm(st)}–{hhmm(en)}
+                      {r.note ? <span className="text-slate-400"> · {r.note}</span> : null}
+                    </p>
+                    <p className="text-xs text-slate-400">{minutesLabel(r.minutes)} · −{r.points} pts</p>
+                  </div>
+                  <button type="button" onClick={() => undoRedemption(r._id)} className="btn-ghost min-h-[36px] px-2 text-xs" aria-label={`Cancelar tempo livre de ${hhmm(st)}`}>
+                    <Undo2 size={14} aria-hidden="true" /> Cancelar
+                  </button>
+                </li>
+              );
+            })}
+          </ul>
+        </section>
+      )}
+
       {/* resgatar */}
       <form onSubmit={submit} className="glass mb-5 space-y-4 p-5" aria-labelledby="resgatar-h">
         <h2 id="resgatar-h" className="font-medium text-white">
@@ -191,15 +248,66 @@ export default function TempoLivrePage() {
             </label>
             <input id="tl-note" className="input" value={note} maxLength={80} onChange={(e) => setNote(e.target.value)} placeholder="Ex.: série, videogame, redes sociais" />
           </div>
-          <label className="flex min-h-[44px] cursor-pointer items-center gap-2 text-sm text-slate-300">
-            <input type="checkbox" className="h-4 w-4 accent-violet-500" checked={startNow} onChange={(e) => setStartNow(e.target.checked)} />
-            Começar agora (com cronômetro)
-          </label>
         </div>
+
+        <fieldset>
+          <legend className="label">Quando?</legend>
+          <div className="flex flex-wrap gap-2">
+            {(
+              [
+                ["now", "Agora (com cronômetro)"],
+                ["later", "Escolher horário"],
+                ["bank", "Guardar para depois"],
+              ] as [Mode, string][]
+            ).map(([v, l]) => (
+              <label
+                key={v}
+                className={clsx(
+                  "flex min-h-[40px] cursor-pointer items-center gap-2 rounded-xl border px-3 text-sm transition has-[:focus-visible]:ring-2 has-[:focus-visible]:ring-violet-300",
+                  mode === v ? "border-violet-400/60 bg-violet-500/20 text-white" : "border-white/15 text-slate-300 hover:bg-white/5"
+                )}
+              >
+                <input type="radio" name="tl-mode" value={v} checked={mode === v} onChange={() => setMode(v)} className="accent-violet-500" />
+                {l}
+              </label>
+            ))}
+          </div>
+          {mode === "later" && (
+            <div className="mt-3 grid grid-cols-2 gap-3 sm:w-80">
+              <div>
+                <label className="label" htmlFor="tl-day">
+                  Dia
+                </label>
+                <input id="tl-day" type="date" className="input" min={todayISO()} value={day} onChange={(e) => setDay(e.target.value)} />
+              </div>
+              <div>
+                <label className="label" htmlFor="tl-time">
+                  Começa às
+                </label>
+                <select id="tl-time" className="input" value={time} onChange={(e) => setTime(e.target.value)}>
+                  {SLOTS.map((t) => (
+                    <option key={t} value={t}>
+                      {t}
+                    </option>
+                  ))}
+                </select>
+              </div>
+              {scheduled && (
+                <p className={clsx("col-span-2 text-xs", scheduleInPast ? "text-rose-300" : "text-slate-400")} role={scheduleInPast ? "alert" : undefined}>
+                  {scheduleInPast
+                    ? "Esse horário já passou. Escolha um horário a partir de agora."
+                    : `Das ${hhmm(scheduled)} às ${hhmm(new Date(scheduled.getTime() + blocks * REDEEM_MINUTES * 60_000))}. Aparece no calendário.`}
+                </p>
+              )}
+            </div>
+          )}
+        </fieldset>
 
         <button type="submit" className="btn-primary w-full" disabled={!canRedeem}>
           <Play size={16} aria-hidden="true" />
-          {max < 1 ? `Junte ${toNext} pts para liberar 30 min` : `Resgatar ${minutesLabel(blocks * REDEEM_MINUTES)} por ${cost} pts`}
+          {max < 1
+            ? `Junte ${toNext} pts para liberar 30 min`
+            : `${mode === "later" ? "Agendar" : "Resgatar"} ${minutesLabel(blocks * REDEEM_MINUTES)} por ${cost} pts`}
         </button>
       </form>
 
@@ -226,7 +334,8 @@ export default function TempoLivrePage() {
 }
 
 function HistoryRow({ r, now, onUndo }: { r: Redemption; now: number | null; onUndo: () => void }) {
-  const canUndo = now !== null && now - new Date(r.createdAt).getTime() < UNDO_MS;
+  const notStarted = now !== null && !!r.startAt && new Date(r.startAt).getTime() > now;
+  const canUndo = now !== null && (now - new Date(r.createdAt).getTime() < UNDO_MS || notStarted);
   return (
     <li className="flex items-center gap-3 py-2.5 text-sm">
       <Clock size={16} className="shrink-0 text-slate-400" aria-hidden="true" />
@@ -235,7 +344,11 @@ function HistoryRow({ r, now, onUndo }: { r: Redemption; now: number | null; onU
           {minutesLabel(r.minutes)}
           {r.note ? <span className="text-slate-400"> · {r.note}</span> : null}
         </p>
-        <p className="text-xs text-slate-400">{when(r.createdAt)}</p>
+        <p className="text-xs text-slate-400">
+          {r.startAt
+            ? `${notStarted ? "Agendado para" : "Usado em"} ${when(r.startAt)}`
+            : `Guardado em ${when(r.createdAt)} (sem horário)`}
+        </p>
       </div>
       <span className="font-medium tabular-nums text-rose-300">−{r.points}</span>
       {canUndo && (

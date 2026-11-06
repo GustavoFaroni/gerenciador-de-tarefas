@@ -140,3 +140,6 @@ export function minutesLabel(min: number) {
   if (min < 60) return `${min} min`;
   return min % 60 ? `${Math.floor(min / 60)}h${min % 60}` : `${min / 60}h`;
 }
+
+/** A tarefa já rendeu pontos? (concluída, ou recorrente com alguma ocorrência concluída) */
+export const hasPoints = (t: Task) => t.status === "concluida" || (t.completions?.length ?? 0) > 0;

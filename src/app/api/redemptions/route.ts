@@ -26,7 +26,14 @@ export async function POST(req: NextRequest) {
     const userId = await getCurrentUserId();
     if (!userId) return fail("Não autenticado", 401);
     await connectDB();
-    const { blocks, startNow, note } = redemptionCreateSchema.parse(await req.json());
+    const { blocks, startAt, note } = redemptionCreateSchema.parse(await req.json());
+    let start: Date | null = null;
+    if (startAt) {
+      start = new Date(startAt);
+      const now = Date.now();
+      if (start.getTime() < now - 5 * 60_000) return fail("Escolha um horário a partir de agora.", 422);
+      if (start.getTime() > now + 60 * 86_400_000) return fail("Agende no máximo 60 dias à frente.", 422);
+    }
     const cost = blocks * REDEEM_POINTS;
     const { balance } = await getBalance(userId);
     if (balance < cost) {
@@ -37,7 +44,7 @@ export async function POST(req: NextRequest) {
       blocks,
       minutes: blocks * REDEEM_MINUTES,
       points: cost,
-      startAt: startNow ? new Date() : null,
+      startAt: start,
       note: note ?? "",
     });
     return ok(r, 201);

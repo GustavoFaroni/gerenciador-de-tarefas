@@ -116,7 +116,7 @@ export function Calendar() {
 }
 
 function CalendarView() {
-  const { tasks, loading, updateTask, setDone, balance } = useStore();
+  const { tasks, loading, updateTask, setDone, balance, redemptions } = useStore();
   const toast = useToast();
   const { open } = useTaskModal();
   const isMobile = useIsMobile();
@@ -207,6 +207,28 @@ function CalendarView() {
     if (el) el.focus();
     else requestAnimationFrame(() => document.getElementById(slotId(nd, SLOTS[ni]))?.focus());
   }
+
+  // faixas de tempo livre agendado/usado (resgates com horário)
+  const leisure = useMemo(() => {
+    const map: Record<string, { id: string; top: number; height: number; label: string }[]> = {};
+    for (const r of redemptions) {
+      if (!r.startAt) continue;
+      const st = new Date(r.startAt);
+      const d = todayISO(st);
+      if (!days.includes(d)) continue;
+      const startMin = st.getHours() * 60 + st.getMinutes();
+      const len = Math.min(r.minutes, 24 * 60 - startMin);
+      const fmt = (x: Date) => x.toLocaleTimeString("pt-BR", { hour: "2-digit", minute: "2-digit" });
+      const en = new Date(st.getTime() + r.minutes * 60_000);
+      (map[d] ||= []).push({
+        id: r._id,
+        top: (startMin / 30) * ROW_H,
+        height: (len / 30) * ROW_H,
+        label: `Tempo livre ${fmt(st)}–${fmt(en)}${r.note ? ` · ${r.note}` : ""}`,
+      });
+    }
+    return map;
+  }, [redemptions, days]);
 
   function onDragStart(e: DragStartEvent) {
     setActive((e.active.data.current?.task as Task) ?? null);
@@ -392,6 +414,15 @@ function CalendarView() {
                         <span className="h-px flex-1 bg-rose-400" />
                       </div>
                     )}
+                    {leisure[d]?.map((l) => (
+                      <div
+                        key={l.id}
+                        className="pointer-events-none absolute inset-x-0 z-[5] overflow-hidden border-l-4 border-emerald-400 bg-emerald-500/15 px-1.5 py-0.5"
+                        style={{ top: l.top, height: l.height }}
+                      >
+                        <span className="block truncate text-[11px] font-semibold text-emerald-200">{l.label}</span>
+                      </div>
+                    ))}
                     {byDay[d]?.map((b) => (
                       <Block
                         key={`${b.task._id}-${d}`}

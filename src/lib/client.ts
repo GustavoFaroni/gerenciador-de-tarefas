@@ -38,8 +38,8 @@ export const api = {
   },
   redemptions: {
     list: () => req<Redemption[]>("/api/redemptions"),
-    create: (blocks: number, startNow: boolean, note?: string) =>
-      req<Redemption>("/api/redemptions", { method: "POST", body: JSON.stringify({ blocks, startNow, note }) }),
+    create: (blocks: number, startAt: string | null, note?: string) =>
+      req<Redemption>("/api/redemptions", { method: "POST", body: JSON.stringify({ blocks, startAt, note }) }),
     remove: (id: string) => req<{ deleted: boolean }>(`/api/redemptions/${id}`, { method: "DELETE" }),
   },
   daily: {
