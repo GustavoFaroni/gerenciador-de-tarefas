@@ -25,13 +25,19 @@ const TaskSchema = new Schema(
     completions: {
       type: [
         new Schema(
-          { date: String, at: Date, points: Number, doubled: Boolean },
+          { date: String, at: Date, points: Number, doubled: Boolean, time: String, note: String },
           { _id: false }
         ),
       ],
       default: [],
     },
     pointsEarned: { type: Number, default: null },
+    skips: {
+      type: [new Schema({ date: String, note: String }, { _id: false })],
+      default: [],
+    },
+    doneTime: { type: String, default: null },
+    reviewNote: { type: String, default: "" },
     doubled: { type: Boolean, default: false },
   },
   { timestamps: true }

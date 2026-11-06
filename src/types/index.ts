@@ -15,6 +15,12 @@ export interface Completion {
   at: string; // quando foi concluída
   points: number;
   doubled: boolean;
+  time?: string | null; // horário real em que foi feita ("HH:MM")
+  note?: string;
+}
+export interface Skip {
+  date: string; // ocorrência marcada como "não fiz"
+  note?: string;
 }
 
 export interface Task {
@@ -36,6 +42,9 @@ export interface Task {
   completions?: Completion[]; // conclusões de tarefas recorrentes
   pointsEarned?: number | null; // pontos ganhos (tarefa avulsa)
   doubled?: boolean;
+  skips?: Skip[]; // ocorrências revisadas como "não fiz"
+  doneTime?: string | null; // horário real informado na revisão (avulsa)
+  reviewNote?: string; // observação da revisão (avulsa)
   createdAt: string;
   updatedAt: string;
 }

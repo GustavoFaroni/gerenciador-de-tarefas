@@ -27,6 +27,11 @@ export const api = {
         body: JSON.stringify({ ...data, tz: Intl.DateTimeFormat().resolvedOptions().timeZone }),
       }),
     remove: (id: string) => req<{ deleted: boolean }>(`/api/tasks/${id}`, { method: "DELETE" }),
+    review: (id: string, data: { date: string; done: boolean; doneAt?: string; note?: string }) =>
+      req<Task>(`/api/tasks/${id}/review`, {
+        method: "POST",
+        body: JSON.stringify({ ...data, tz: Intl.DateTimeFormat().resolvedOptions().timeZone }),
+      }),
   },
   goals: {
     list: () => req<Goal[]>("/api/goals"),

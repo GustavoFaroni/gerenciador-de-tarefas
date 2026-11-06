@@ -46,10 +46,15 @@ export function clockIn(tz: string, d = new Date()) {
     month: "2-digit",
     day: "2-digit",
     hour: "2-digit",
+    minute: "2-digit",
     hourCycle: "h23",
   }).formatToParts(d);
   const get = (k: string) => parts.find((p) => p.type === k)?.value ?? "00";
-  return { date: `${get("year")}-${get("month")}-${get("day")}`, hour: Number(get("hour")) % 24 };
+  return {
+    date: `${get("year")}-${get("month")}-${get("day")}`,
+    hour: Number(get("hour")) % 24,
+    minute: Number(get("minute")),
+  };
 }
 
 /* ----------------------------- recorrência ----------------------------- */

@@ -23,6 +23,8 @@ type Store = {
   /** Conclui/reabre a tarefa num dia (recorrentes: a ocorrência daquele dia). */
   setDone: (task: Task, done: boolean, date?: string) => Promise<boolean>;
   deleteTask: (id: string) => Promise<void>;
+  /** Revisão de uma ocorrência: fiz (com horário real/observação) ou não fiz. Sem toast. */
+  reviewTask: (id: string, data: { date: string; done: boolean; doneAt?: string; note?: string }) => Promise<Task | null>;
   setDaily: (id: string, date: string | null) => Promise<boolean>;
   createGoal: (data: Partial<Goal>) => Promise<Goal | null>;
   updateGoal: (id: string, data: Partial<Goal>) => Promise<void>;
@@ -151,6 +153,20 @@ export function StoreProvider({ children }: { children: ReactNode }) {
     [toast]
   );
 
+  const reviewTask = useCallback(
+    async (id: string, data: { date: string; done: boolean; doneAt?: string; note?: string }) => {
+      try {
+        const t = await api.tasks.review(id, data);
+        setTasks((prev) => prev.map((x) => (x._id === id ? t : x)));
+        return t;
+      } catch (e) {
+        toast((e as Error).message, "error");
+        return null;
+      }
+    },
+    [toast]
+  );
+
   const deleteTask = useCallback(
     async (id: string) => {
       let snapshot: Task[] = [];
@@ -249,6 +265,7 @@ export function StoreProvider({ children }: { children: ReactNode }) {
         updateTask,
         setDone,
         deleteTask,
+        reviewTask,
         setDaily,
         createGoal,
         updateGoal,

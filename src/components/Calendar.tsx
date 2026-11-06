@@ -13,7 +13,8 @@ import {
   type DragEndEvent,
   type DragStartEvent,
 } from "@dnd-kit/core";
-import { ChevronLeft, ChevronRight, Check, Coins, Repeat, Sun, StickyNote, Plus, GripVertical } from "lucide-react";
+import { ChevronLeft, ChevronRight, Check, Coins, Repeat, Sun, StickyNote, Plus, GripVertical, ClipboardCheck } from "lucide-react";
+import { OPEN_REVIEW_EVENT, usePendingReviews } from "./ReviewPrompt";
 import clsx from "clsx";
 import { useStore } from "./Store";
 import { useToast } from "./Toast";
@@ -150,7 +151,8 @@ function CalendarView() {
   const unscheduled = useMemo(
     () =>
       tasks
-        .filter((t) => (isRecurring(t) ? !t.startTime : t.status === "pendente" && !(t.scheduledDate && t.startTime)))
+        // avulsas pendentes ainda sem dia (as que têm dia e as recorrentes aparecem na faixa "sem hora" de cada dia)
+        .filter((t) => !isRecurring(t) && t.status === "pendente" && !t.scheduledDate)
         .sort(sortTasks),
     [tasks]
   );
@@ -207,6 +209,14 @@ function CalendarView() {
     if (el) el.focus();
     else requestAnimationFrame(() => document.getElementById(slotId(nd, SLOTS[ni]))?.focus());
   }
+
+  // tarefas do dia sem horário (recorrentes sem hora e avulsas com dia mas sem hora)
+  const untimed = useMemo(() => {
+    const map: Record<string, Task[]> = {};
+    for (const d of days) map[d] = tasks.filter((t) => !t.startTime && occursOn(t, d) && (isRecurring(t) || t.status === "pendente")).sort(sortTasks);
+    return map;
+  }, [tasks, days]);
+  const toReview = usePendingReviews().length;
 
   // faixas de tempo livre agendado/usado (resgates com horário)
   const leisure = useMemo(() => {
@@ -285,6 +295,15 @@ function CalendarView() {
               Saldo <b>{balance}</b> pts
             </span>
           </div>
+          {toReview > 0 && (
+            <button
+              type="button"
+              onClick={() => window.dispatchEvent(new Event(OPEN_REVIEW_EVENT))}
+              className="flex min-h-[40px] items-center gap-2 rounded-xl border border-violet-400/40 bg-violet-500/15 px-3 text-sm text-violet-100 hover:bg-violet-500/25"
+            >
+              <ClipboardCheck size={16} aria-hidden="true" /> Revisar ({toReview})
+            </button>
+          )}
           <div className="flex items-center rounded-xl border border-white/10 bg-white/5 p-1">
             <button
               onClick={() => setAnchor(addDays(anchor, isMobile ? -1 : -7))}
@@ -349,6 +368,15 @@ function CalendarView() {
                     <p className={clsx("text-xs uppercase", d === today ? "text-violet-300" : "text-slate-400")}>{WEEKDAYS_LONG[dowOf(d)]}</p>
                     <p className={clsx("text-lg font-semibold leading-tight", d === today ? "text-white" : "text-slate-200")}>{dayNum(d)}</p>
                     <p className="text-[11px] text-amber-200/80">{pts ? `+${pts} pts` : " "}</p>
+                    {untimed[d]?.length > 0 && (
+                      <ul className="mt-1.5 flex max-h-[104px] flex-col gap-1 overflow-y-auto text-left" aria-label={`Sem horário em ${spokenDate(d)}`}>
+                        {untimed[d].map((t) => (
+                          <li key={t._id}>
+                            <DayChip task={t} day={d} onToggle={() => setDone(t, !isDoneOn(t, d), d)} onOpen={() => open(t)} />
+                          </li>
+                        ))}
+                      </ul>
+                    )}
                   </div>
                 );
               })}
@@ -552,10 +580,15 @@ function Block({
   const earned = isRecurring(task) ? task.completions?.find((c) => c.date === day)?.points : task.pointsEarned;
   const short = height <= ROW_H;
   const spoken = spokenTask(task);
+  const comp = isRecurring(task) ? task.completions?.find((c) => c.date === day) : null;
+  const doneTime = comp?.time ?? (isRecurring(task) ? null : task.doneTime);
+  const doneNote = comp?.note || (isRecurring(task) ? "" : task.reviewNote);
+  const tip = [task.title, done && doneTime ? `feito às ${doneTime}` : "", doneNote ? `obs.: ${doneNote}` : ""].filter(Boolean).join(" · ");
   return (
     <div
       ref={setNodeRef}
       {...pointerListeners}
+      title={tip}
       style={{ top: top + 1, height: height - 2, left: `calc(${left}% + 2px)`, width: `calc(${width}% - 4px)` }}
       className={clsx(
         "group absolute z-10 flex cursor-grab touch-none select-none gap-1 overflow-hidden rounded-md border-l-4 py-0.5 pl-1 pr-1 shadow-postit active:cursor-grabbing",
@@ -593,7 +626,7 @@ function Block({
           e.stopPropagation();
           onOpen();
         }}
-        aria-label={`Editar: ${spoken}${done ? ", concluída" : ""}`}
+        aria-label={`Editar: ${spoken}${done ? `, concluída${doneTime ? ` às ${doneTime}` : ""}` : ""}${doneNote ? `, observação: ${doneNote}` : ""}`}
         className="min-w-0 flex-1 self-stretch rounded text-left"
       >
         <p className={clsx("truncate text-[13px] font-semibold leading-4", done && "line-through")}>
@@ -624,6 +657,64 @@ function Block({
         className="absolute inset-y-0 right-0 grid w-5 cursor-grab place-items-center rounded-r bg-inherit opacity-0 transition group-hover:opacity-80 focus-visible:opacity-100"
       >
         <GripVertical size={13} aria-hidden="true" />
+      </button>
+    </div>
+  );
+}
+
+/** Tarefa do dia sem horário: aparece no topo da coluna e pode ser arrastada para um horário */
+function DayChip({ task, day, onToggle, onOpen }: { task: Task; day: string; onToggle: () => void; onOpen: () => void }) {
+  const { attributes, listeners, setNodeRef, setActivatorNodeRef, isDragging } = useDraggable({ id: `day|${task._id}|${day}`, data: { task, day } });
+  const { onKeyDown, ...pointerListeners } = listeners ?? {};
+  const done = isDoneOn(task, day);
+  return (
+    <div
+      ref={setNodeRef}
+      {...pointerListeners}
+      className={clsx(
+        "group relative flex cursor-grab touch-none select-none items-center gap-1 rounded border-l-4 py-0.5 pl-1 pr-1 shadow-postit active:cursor-grabbing",
+        POSTIT_COLORS[task.priority],
+        PRIORITY_STRIPE[task.priority],
+        done && "opacity-60",
+        isDragging && "opacity-30"
+      )}
+    >
+      <button
+        type="button"
+        {...stop}
+        onClick={(e) => {
+          e.stopPropagation();
+          onToggle();
+        }}
+        aria-pressed={done}
+        aria-label={`${done ? "Reabrir" : "Concluir"} ${task.title}`}
+        className="grid h-5 w-4 shrink-0 place-items-center"
+      >
+        <span className={clsx("grid h-3.5 w-3.5 place-items-center rounded border-2", done ? "border-emerald-800 bg-emerald-700 text-white" : "border-black/60 bg-white/50")}>
+          {done && <Check size={9} strokeWidth={3} aria-hidden="true" />}
+        </span>
+      </button>
+      <button
+        type="button"
+        {...stop}
+        onClick={(e) => {
+          e.stopPropagation();
+          onOpen();
+        }}
+        aria-label={`Editar: ${spokenTask(task)}, sem horário`}
+        className={clsx("min-w-0 flex-1 truncate text-left text-[11px] font-semibold leading-4", done && "line-through")}
+      >
+        {task.title}
+      </button>
+      <button
+        type="button"
+        ref={setActivatorNodeRef}
+        {...attributes}
+        onKeyDown={onKeyDown as React.KeyboardEventHandler<HTMLButtonElement> | undefined}
+        aria-label={`Mover para um horário: ${spokenTask(task)}`}
+        className="absolute inset-y-0 right-0 grid w-4 place-items-center rounded-r bg-inherit opacity-0 transition group-hover:opacity-80 focus-visible:opacity-100"
+      >
+        <GripVertical size={11} aria-hidden="true" />
       </button>
     </div>
   );

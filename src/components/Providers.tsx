@@ -6,6 +6,7 @@ import { ToastProvider } from "./Toast";
 import { StoreProvider } from "./Store";
 import { TaskModalProvider } from "./TaskModal";
 import { Sidebar } from "./Sidebar";
+import { ReviewPrompt } from "./ReviewPrompt";
 
 const PUBLIC_ROUTES = ["/login", "/cadastro"];
 
@@ -25,6 +26,7 @@ export function Providers({ children }: { children: ReactNode }) {
                 <Sidebar />
                 <main className="min-w-0 flex-1 px-4 pb-24 pt-6 md:px-8 md:pb-10">{children}</main>
               </div>
+              <ReviewPrompt />
             </TaskModalProvider>
           </StoreProvider>
         )}

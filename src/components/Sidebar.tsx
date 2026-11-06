@@ -1,7 +1,8 @@
 "use client";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-import { LayoutDashboard, Target, Flag, Plus, LogOut, CalendarDays, Coins, Sun, Hourglass } from "lucide-react";
+import { LayoutDashboard, Target, Flag, Plus, LogOut, CalendarDays, Coins, Sun, Hourglass, ClipboardCheck } from "lucide-react";
+import { OPEN_REVIEW_EVENT, usePendingReviews } from "./ReviewPrompt";
 import { REDEEM_MINUTES, affordableBlocks, earnedOn, isDoneOn, minutesLabel } from "@/lib/points";
 import { Logo } from "./Logo";
 import { signOut, useSession } from "next-auth/react";
@@ -30,6 +31,7 @@ export function Sidebar() {
   const dailyDone = daily.filter((t) => isDoneOn(t, today)).length;
   const ptsToday = earnedOn(tasks, today);
   const freeMin = affordableBlocks(balance) * REDEEM_MINUTES;
+  const toReview = usePendingReviews().length;
 
   return (
     <>
@@ -63,6 +65,18 @@ export function Sidebar() {
             </Link>
           ))}
         </nav>
+
+        {toReview > 0 && (
+          <button
+            type="button"
+            onClick={() => window.dispatchEvent(new Event(OPEN_REVIEW_EVENT))}
+            className="mt-4 flex items-center gap-2 rounded-xl border border-violet-400/40 bg-violet-500/15 px-3 py-2.5 text-left text-sm text-violet-100 hover:bg-violet-500/25"
+          >
+            <ClipboardCheck size={17} aria-hidden="true" />
+            <span className="flex-1">Revisar atividades</span>
+            <span className="rounded-full bg-violet-400/30 px-2 text-xs font-semibold tabular-nums">{toReview}</span>
+          </button>
+        )}
 
         <Link href="/tempo-livre" className="glass mt-auto mb-3 block p-4 transition hover:border-amber-300/30">
           <p className="flex items-center gap-1.5 text-xs uppercase tracking-wide text-slate-400">

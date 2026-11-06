@@ -220,6 +220,12 @@ function TaskModal({ task, defaults, onClose }: { task: Task | null; defaults: P
             )}
           </div>
 
+          {recurring && !startTime && (
+            <p className="rounded-lg border border-amber-300/30 bg-amber-300/10 px-3 py-2 text-xs text-amber-100" role="note">
+              Sem horário, ela aparece no topo do dia no calendário. Escolha um <b>Horário</b> para ela ocupar a grade.
+            </p>
+          )}
+
           <div className="grid grid-cols-1 gap-4 sm:grid-cols-3">
             {!recurring && (
               <div>

@@ -61,3 +61,12 @@ export const redemptionCreateSchema = z.object({
   startAt: z.string().datetime({ offset: true }).nullable().optional(),
   note: z.string().trim().max(80).optional(),
 });
+
+export const reviewSchema = z.object({
+  date: isoDate,
+  done: z.boolean(),
+  /** quando foi feita de verdade (ISO). Ausente = no horário agendado */
+  doneAt: z.string().datetime({ offset: true }).optional(),
+  note: z.string().trim().max(300).optional(),
+  tz: z.string().max(64).optional(),
+});
