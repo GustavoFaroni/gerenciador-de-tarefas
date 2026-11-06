@@ -333,7 +333,7 @@ function CalendarView() {
         onDragEnd={onDragEnd}
         onDragCancel={() => setActive(null)}
       >
-        <div className="grid grid-cols-1 gap-5 lg:grid-cols-[250px_minmax(0,1fr)]">
+        <div className="grid grid-cols-1 gap-5 lg:grid-cols-[200px_minmax(0,1fr)]">
           <Unscheduled tasks={unscheduled} onAdd={() => open(null, { scheduledDate: anchor })} />
 
           <section className="glass min-w-0 overflow-hidden">
@@ -653,7 +653,7 @@ function Block({
           className={clsx(
             "min-w-0 max-w-full font-semibold leading-[1.15rem]",
             narrow ? "text-[12px]" : "text-[13px]",
-            short || narrow ? "truncate" : slots >= 3 ? "line-clamp-3" : "line-clamp-2",
+            short ? "truncate" : slots >= 4 ? "line-clamp-3" : "line-clamp-2",
             done && "text-slate-400 line-through decoration-slate-500"
           )}
         >
@@ -668,7 +668,7 @@ function Block({
                 agora ·
               </span>
             )}
-            {done && doneTime && doneTime !== task.startTime ? `feito às ${doneTime}` : range}
+            {done && doneTime && doneTime !== task.startTime ? `feito às ${doneTime}` : narrow ? task.startTime : range}
           </span>
         )}
         {tall && (
@@ -677,17 +677,19 @@ function Block({
               <Coins size={11} aria-hidden="true" />
               {done && earned != null ? `+${earned}` : basePoints(task)}
             </span>
-            <span className="flex items-center gap-1 rounded-md bg-black/25 px-1.5 py-0.5 text-slate-200">
-              <span className={clsx("h-1.5 w-1.5 rounded-full", e.dot)} aria-hidden="true" />
-              {PRIORITY_LABEL[task.priority]}
-            </span>
+            {!narrow && (
+              <span className="flex items-center gap-1 rounded-md bg-black/25 px-1.5 py-0.5 text-slate-200">
+                <span className={clsx("h-1.5 w-1.5 rounded-full", e.dot)} aria-hidden="true" />
+                {PRIORITY_LABEL[task.priority]}
+              </span>
+            )}
             {isRecurring(task) && (
               <span className="flex items-center gap-1 rounded-md bg-black/25 px-1.5 py-0.5 text-slate-200">
                 <Repeat size={10} aria-hidden="true" />
-                {recurrenceLabel(task.recurrence)}
+                {!narrow && recurrenceLabel(task.recurrence)}
               </span>
             )}
-            {doneNote && <span className="max-w-full truncate rounded-md bg-black/25 px-1.5 py-0.5 italic text-slate-300">“{doneNote}”</span>}
+            {doneNote && !narrow && <span className="max-w-full truncate rounded-md bg-black/25 px-1.5 py-0.5 italic text-slate-300">“{doneNote}”</span>}
           </span>
         )}
       </button>
@@ -701,9 +703,14 @@ function Block({
         }}
         aria-pressed={done}
         aria-label={`${done ? "Reabrir" : "Concluir"} ${task.title}`}
-        className={clsx("group/check grid shrink-0 place-items-center rounded-full", narrow ? "h-6 w-5" : "h-7 w-7", short ? "" : "-mt-1")}
+        className={clsx(
+          "group/check grid shrink-0 place-items-center rounded-full transition",
+          narrow
+            ? clsx("absolute right-0.5 h-6 w-6 rounded-full bg-ink-900/70", short ? "top-1/2 -translate-y-1/2" : "top-0.5", !done && "opacity-0 group-hover:opacity-100 focus-visible:opacity-100 [@media(hover:none)]:opacity-100")
+            : clsx("h-7 w-7", short ? "" : "-mt-1")
+        )}
       >
-        <CheckCircle done={done} size={narrow ? 15 : 18} />
+        <CheckCircle done={done} size={narrow ? 16 : 18} />
       </button>
 
       <button
@@ -712,7 +719,10 @@ function Block({
         {...attributes}
         onKeyDown={onKeyDown as React.KeyboardEventHandler<HTMLButtonElement> | undefined}
         aria-label={`Mover: ${spoken}`}
-        className="absolute bottom-0.5 right-0.5 grid h-5 w-5 cursor-grab place-items-center rounded text-slate-300 opacity-0 transition group-hover:opacity-70 focus-visible:opacity-100"
+        className={clsx(
+          "absolute right-0.5 grid h-5 w-5 cursor-grab place-items-center rounded text-slate-300 opacity-0 transition group-hover:opacity-70 focus-visible:opacity-100",
+          short ? "hidden focus-visible:grid focus-visible:top-0" : "bottom-0.5"
+        )}
       >
         <GripVertical size={12} aria-hidden="true" />
       </button>
@@ -759,7 +769,10 @@ function DayChip({ task, day, onToggle, onOpen }: { task: Task; day: string; onT
         }}
         aria-pressed={done}
         aria-label={`${done ? "Reabrir" : "Concluir"} ${task.title}`}
-        className="group/check grid h-6 w-5 shrink-0 place-items-center"
+        className={clsx(
+          "group/check absolute right-0.5 top-1/2 grid h-6 w-6 -translate-y-1/2 place-items-center rounded-full bg-ink-900/70 transition",
+          !done && "opacity-0 group-hover:opacity-100 focus-visible:opacity-100 [@media(hover:none)]:opacity-100"
+        )}
       >
         <CheckCircle done={done} size={14} />
       </button>
